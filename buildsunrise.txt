@@ -1,0 +1,10 @@
+#export CPPFLAGS="-I$HOME/local/include -I$HOME/local/include/libPJutil -pthread"
+export CPPFLAGS="-I$HOME/include -I$HOME/include/libPJutil -pthread"
+#export CXXFLAGS="-g  -O3 -pthread"
+#export CXXFLAGS=" -O2 -pthread"
+export CXXFLAGS="-ggdb  -O3"
+#export LDFLAGS="-L$HOME/local/lib"
+export LDFLAGS="-L$HOME/lib"
+export CXX=icpc
+#./configure --prefix=$HOME/local --with-boost=$HOME/local
+./configure --prefix=$HOME --with-boost=$HOME

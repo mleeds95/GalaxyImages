@@ -1,0 +1,205 @@
+How to Build and Compile Sunrise
+(https://code.google.com/p/sunrise/)
+-----------------------------------------------------------------------------------------
+
+1. Intel Compiler
+
+	Sign up at 	http://software.intel.com/en-us/non-commercial-software-development 
+	to obtain a non-commercial license and download Intel C++ Composer XE 2013
+	
+	-Download .tar.gz file
+	-Extract using tar -xvzf [].tar.gz
+	-cd into new directory and install using  ./install.sh
+	-Follow prompts to install, Only required features for running Sunrise are 
+	 Intel C/C++ compilers and Intel Thread Building Blocks. The others may be omitted.
+	 
+-----------------------------------------------------------------------------------------
+Before I get started I want to suggest creating build scrips for each program, 
+trust me when I say this will speed up the compiling process greatly.  No let's get on to compiling!
+-----------------------------------------------------------------------------------------
+
+2. Boost
+
+	Download Boost from http://www.boost.org/users/history/ 
+	Currently Boost Version 1.48.0 is know to be compatible with Sunrise Version 4.0
+	(Sunrise requires at least Boost Version 1.40.0)
+	
+	-Download .tar.gz file
+	-Extract using tar -xvzf [].tar.gz
+	-cd into boost directory and execute following commands:
+		
+		./bootstrap.sh --without-libraries=python --with-toolset=intel-linux --prefix=$HOME --libdir=$HOME/lib/boost_1_48_0 --includedir=$HOME/include/boost_1_48_0
+		./bjam --prefix=$HOME install
+		
+	This will install the Boost library into $HOME/include and $HOME/lib
+	
+	Optional: For these files to be found later on without specifically adding the boost
+	          directory to include directives you can execute:
+			  
+			  ln -s $HOME/include/boost-<version>/boost $HOME/include/boost
+			  
+			  of course change -<version> to match your version.
+	
+	See (http://www.boost.org/doc/libs/1_48_0/more/getting_started/unix-variants.html) for more help.
+	
+----------------------------------------------------------------------------------------------	
+
+3. Mercurial 
+
+	Download Source Release file from (http://mercurial.selenic.com/downloads/)
+	
+	In order to build Mercurial you will need Python 2.4-2.7. To obtain Python on RC2
+	you will need to edit your .bash_profile
+	
+		vi ~/.bash_profile
+		then add	
+		export DK_ROOT=/share/apps/dotkit
+		. /share/apps/dotkit/bash/.dk_init 
+	
+	You will now need to switch to Python to do this execute:
+	
+		use -l
+		use Python[Version#][without shared libraries]
+		
+	(See http://rc2-docs.ua.edu/doku.php?id=available_software for more help)
+	
+	You are now ready to install Mercurial!
+		
+	-Download .tar.gz file
+	-Extract using tar -xvzf [].tar.gz
+	-cd into Mercurial directory and execute the following commands:
+	
+		make local
+		make install-home-bin
+	
+	You will again need to edit your .bash_profile
+	
+		vi ~/.bash_profile
+		then add
+		export PYTHONPATH=~/lib/python
+		export PATH=~/bin:$PATH
+		export HGRCPATH=~/.hgrc
+		
+	Then update .bash_profile by doing: source ~/.bash_profile
+	
+-----------------------------------------------------------------------------------------------
+			  
+4. Blitz
+
+	You now need to obtain the Blitz library, you can do this using Mercurial, execute:
+	
+		hg clone http://blitz.hg.sourceforge.net:8000/hgroot/blitz/blitz
+		
+	This should put the Blitz directory into $HOME now cd into the Blitz directory and execute:
+	
+		autoreconf -fiv
+		export CXX=icpc
+		export CXXFLAGS='-g -O2 -pthread'
+		export LDFLAGS=-pthread
+		./configure --prefix=$HOME/ --with-boost=$HOME/  --without-mpi --enable-threadsafe --disable-cxx-flags-preset --enable-serialization
+		make lib
+		make install
+		
+	If you choose to do so you can add --with-tbb to the ./configure 
+	this may or may not give you a slight performace increase.
+	
+-------------------------------------------------------------------------------------------------
+
+5. cfitsio
+
+	Obtain and untar the newest .tar file from (http://heasarc.gsfc.nasa.gov/fitsio/)
+	Cd into the directory then execute:
+		
+		export CFLAGS='-pthread -O3'
+		export CC=icc
+		./configure --prefix=$HOME
+		make
+		make install
+		
+---------------------------------------------------------------------------------------------------
+	
+6. CCfits
+
+	Obtain and untar the newest .tar file from (http://heasarc.gsfc.nasa.gov/docs/software/fitsio/ccfits/)
+	Cd into the directory then execute:
+		
+		export CXX=icpc
+		export CXXFLAGS='-pthread -o3'
+		./configure --prefix=$HOME --with-cfitsio=$HOME
+		make
+		make install
+		
+----------------------------------------------------------------------------------------------------
+
+7. libPJutil
+
+	Obtain the newest lipPJutil directory using Mercurial by executing:
+		
+		hg clone https://bitbucket.org/lutorm/libpjutil
+	
+	Cd into the directory and execute:
+	
+		export CPPFLAGS="-I$HOME/include -pthread"
+		export CXX=icpc
+		export CXXFLAGS="-O2 -pthread"
+		export LDFLAGS=-L$HOME/local/lib
+		./configure --prefix=$HOME --with-boost=$HOME
+		
+-------------------------------------------------------------------------------------------------------
+
+8. UnitsGNU
+
+	Obtain the Units-1.88 .tar file from (http://ftp.gnu.org/gnu/units/)
+	Untar then cd into units directory the execute:
+	
+		./configure --prefix=$HOME
+		make
+		make install
+	
+	We then have to edit our .bash_profile
+	
+		vi ~/.bash_profile
+		then add
+		export UNITSFILE=$HOME/share/units.dat
+		
+	See (http://www.gnu.org/software/units/) for more help
+	
+----------------------------------------------------------------------------------------------------------
+
+9. Sunrise
+
+	Obtain the newest Sunrise directory by executing:
+		
+		hg clone https://code.google.com/p/sunrise/
+
+	cd into the directory then execute:
+	
+		autoreconf -fiv	
+		export CPPFLAGS="-I$HOME/include -I$HOME/include/libPJutil -pthread"
+		export CXXFLAGS="-ggdb  -O3"
+		export LDFLAGS="-L$HOME/lib"
+		export CXX=icpc
+		./configure --prefix=$HOME --with-boost=$HOME
+		make 
+		make install
+		
+	Congratulations, Sunrise should now be compiled!!
+	See (https://code.google.com/p/sunrise/wiki/Compiling) for more help!
+	
+----------------------------------------------------------------------------------------------------
+
+If you cannot solve an issue feel free to email me at mwgrybas@crimson.ua.edu
+The people on the Sunrise discussion group may also be able to help you!
+(https://groups.google.com/forum/#!forum/sunrisemcrx)
+
+
+
+
+
+
+
+
+
+
+
+			  

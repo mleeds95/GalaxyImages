@@ -1,0 +1,6 @@
+export CPPFLAGS="-I$HOME/include -pthread"
+export CXX=icpc
+export CXXFLAGS="-O2 -pthread"
+export LDFLAGS=-L$HOME/local/lib
+#./configure --prefix=$HOME/local --with-boost=$HOME/local
+./configure --prefix=$HOME --with-boost=$HOME

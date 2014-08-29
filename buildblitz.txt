@@ -1,0 +1,5 @@
+export CXX=icpc
+export CXXFLAGS='-g -O2 -pthread'
+export LDFLAGS=-pthread
+#./configure --prefix=$HOME/local --with-boost=$HOME/local/  --without-mpi --enable-threadsafe --disable-cxx-flags-preset --enable-serialization
+./configure --prefix=$HOME/ --with-boost=$HOME/  --without-mpi --enable-threadsafe --disable-cxx-flags-preset --enable-serialization
