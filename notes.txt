@@ -1,0 +1,14 @@
+Aristotle Info:
+130.160.99.206
+/Volumes/PROMISE PEGASUS/MUGS
+Notes:
+100 kiloparsecs radius
+G15784. snapshot
+mugs.mcmaster.ca
+physical units in pynbody
+a = 1/(1+z), a is scale factor, z is redshift
+first file is simulation info
+-iord tells which particle (by unique id) is where in each file
+-AHF is the halo finder that finds the galaxy in the simulation
+-blue stars are younger, red are older
+in galaxies, the dark matter, star particles and dust are the most important
