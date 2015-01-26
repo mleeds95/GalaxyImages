@@ -12,3 +12,11 @@ first file is simulation info
 -AHF is the halo finder that finds the galaxy in the simulation
 -blue stars are younger, red are older
 in galaxies, the dark matter, star particles and dust are the most important
+
+Due to "ValueError: invalid literal for int() with base 10" errors when 
+running sim.halos() (in _load_ahf_particle_block), I changed lines 
+2 and 4290038 
+in g15784.01024.z0.000.AHF_particles
+useful AHF docs: http://popia.ft.uam.es/AHF/files/AHF.pdf
+appears to be erroring here:
+https://github.com/pynbody/pynbody/blob/d561474a5fe36d5dc2f839a7e951acd88db103d5/pynbody/halo.py#L361

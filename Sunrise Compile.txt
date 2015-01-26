@@ -165,6 +165,17 @@ trust me when I say this will speed up the compiling process greatly.  No let's 
 	See (http://www.gnu.org/software/units/) for more help
 	
 ----------------------------------------------------------------------------------------------------------
+
+8.5 TBB (Intel Thread Building Blocks)
+
+    <added by Matthew Leeds, mwleeds@crimson.ua.edu, 10.19.2014>
+    I found that I also needed Intel TBB, which you can get here:
+    https://www.threadingbuildingblocks.org/download
+    After untaring it, simply copy the lib and include files into your
+    ~/lib and ~/include directories, or link to them with environment 
+    variables.
+
+----------------------------------------------------------------------------------------------------------
 
 9. Sunrise
 
