@@ -20,3 +20,38 @@ in g15784.01024.z0.000.AHF_particles
 useful AHF docs: http://popia.ft.uam.es/AHF/files/AHF.pdf
 appears to be erroring here:
 https://github.com/pynbody/pynbody/blob/d561474a5fe36d5dc2f839a7e951acd88db103d5/pynbody/halo.py#L361
+
+next:
+radius of 50 ExtractGalaxy
+try max_level 11
+flip th, phi
+
+Notes for how to run a simulation from start to finish:
+1. Run "ExtractGalaxy.py" to generate a fname.stdtipsy file in the same directory as fname.
+2. Run "cat fname.sphere | ./std2ascii > fname.ascii". You can find std2ascii in the tipsy_tools directory.
+3. Run "./smoothbin hsmooth < fname.sphere" to generate a smooth.hsm file.
+4. Tar up the smooth.hsm and fname.ascii files and send them to rc2.
+5. Ensure sfrhist's config files are correct.
+6. Start sfrhist: "bsub -q main -o ~/sfrhist.out.1 -e ~/sfrhist.err.1 ./sfrhist sfrhist.config"
+
+
+Notes for what to do with output:
+1. You can use the fitsio python package to look at the tables in the fits file from broadband, 
+and find one of the CAMERAi-BROADBAND IMAGE-HDU's that you want to look at.
+2. Using the astropy.io.fits module, you can do:
+hdulist = fits.open(fname)
+table = hdulist[i].data # where i is the extnum for FILTERS
+print table['filter']
+Looking at that, figure out the indices of the filters you're interested in.
+3. Do an "hg clone http://bitbucket.org/lutorm/python" and go to the python directory.
+Run "ipython --pylab"
+import make_color, pyfits
+f = pyfits.open(fname)
+im = transpose(f['CAMERAi-BROADBAND'].data, axes=(1,2,0)) # filling in i
+imshow(make_color.make_image(im, band=(x,y,z), scale="auto", return_jpeg=False)) # where x,y,z are the filter indices from above 
+To see the raw image: imshow(im[:,:,0])
+To see min/max: im[:,:,0].min()/max()
+To see the lowest nonzero: numpy.min(im[:,:,0][numpy.nonzero(arr)])
+To bring up the lower values: imshow(numpy.log(im[:,:,0]+1e-16))
+You can also use the autopercentile argument on make_image which is fun.
+
