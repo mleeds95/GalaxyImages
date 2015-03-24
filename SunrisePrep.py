@@ -4,7 +4,7 @@
 #
 # File: SunrisePrep.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
-# Last Edit: 2015-03-23
+# Last Edit: 2015-03-24
 # Purpose: Use PyNBody to extract the galaxy and its surroundings
 # for a certain radius from the larger simulation file, run SMOOTH on it,
 # and generate the Sunrise config files. Please ensure pynbody is installed, 
@@ -25,13 +25,14 @@ import ConfigParser
 import re
 
 CONFIG_FILE = "config.ini"
-WORKING_DIR = os.getcwd()
+WORKING_DIR = os.getcwd() + "/"
 
 def main():
     '''
     Step 1: Read the config file and initialize listOfTimesteps
     '''
     config = ConfigParser.SafeConfigParser()
+    sys.stdout.write("Reading " + CONFIG_FILE + "\n")
     config.read(CONFIG_FILE)
     if not config.has_section("Sunrise Prep"):
         sys.stderr.write("Error: No \"Sunrise Prep\" section found in " + CONFIG_FILE + ".\n")
@@ -89,16 +90,23 @@ def main():
         '''
         os.chdir(SIM_DIR)
         snapName = GALAXY_NAME + "." + timeStep
-        sys.stdout.write("Loading galaxy simulation file " + snapName + "\n")
+        sys.stdout.write("Loading galaxy simulation file " + SIM_DIR + snapName + "\n")
         sim = pynbody.load(snapName)
         if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(sim.g), len(sim.d), len(sim.s)))
+        # If there aren't any stars yet, skip the timestep.
+        if len(sim.s) == 0:
+            sys.stdout.write("Skipping " + snapName + " since there aren't any stars in it.\n")
+            continue
         if PHYS:
             if VERBOSE: sys.stdout.write("Converting to physical units\n")
             sim.physical_units()
         if VERBOSE: sys.stdout.write("Finding the latest time value\n")
-        snaptime = str(float(sim.s["tform"].max()))
-        # grab the value of a (1 / 1+z) so we can account for redshift
+#TODO check if the iord file exists
+        snaptime = float(sim.s["tform"].max())
+        # grab the values of a (1 / 1+z) and z so we can account for redshift
         a = sim.properties["a"]
+        z = sim.properties["z"]
+        nonzeroRedshift = (abs(z) > 1e-8)
         if VERBOSE: sys.stdout.write("Finding Unit conversion values and m_star_creation\n")
         if PHYS:
             UnitMass = 1.9889e33
@@ -118,7 +126,7 @@ def main():
         '''
         Step 3: Cut out the specified radius.
         '''
-        if VERBOSE: sys.stdout.write("Finding the largest halo")
+        if VERBOSE: sys.stdout.write("Finding the largest halo\n")
         h1 = sim.halos()[1]
         if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(h1.g), len(h1.d), len(h1.s)))
         if VERBOSE: sys.stdout.write("Centering the simulation around the main halo\n")
@@ -140,8 +148,9 @@ def main():
         SNAPFILE += (".phys" if PHYS else ".sim")
         SNAPFILESTD = SNAPFILE + ".stdtipsy"
         SNAPFILEASC = SNAPFILE + ".ascii"
+        sys.stdout.write("Writing " + SNAPFILESTD + "\n")
         cut.write(filename=SNAPFILESTD, fmt=pynbody.tipsy.TipsySnap)
-        sys.stdout.write("Writing " + SNAPFILEASC)
+        sys.stdout.write("Writing " + SNAPFILEASC + "\n")
         cmd = "cat " + SNAPFILESTD + " | std2ascii > " + SNAPFILEASC
         FNULL = open(os.devnull, "w")
         p1 = subprocess.Popen(cmd, shell=True, stdout=FNULL, stderr=FNULL)
@@ -166,30 +175,34 @@ def main():
         '''
         Step 6: Generate Sunrise config files.
         '''
-        with open(PARAM_FILE) as f:
+        with open(SIM_DIR + PARAM_FILE) as f:
             originalParams = f.readlines()
         # runDirName is the name of the directory in OUT_DIR, and the name of the one in RUN_DIR
         runDirName = GALAXY_NAME + "-" + timeStep + "-sunrise"
+        if VERBOSE: sys.stdout.write("The running directory will be " + runDirName + "\n")
         os.chdir(OUT_DIR)
+        if os.path.isdir(runDirName):
+            shutil.rmtree(runDirName) # in case this isn't the first run
         os.mkdir(runDirName)
         os.chdir(runDirName)
         fullRunDir = RUN_DIR + runDirName + "/"
+        sys.stdout.write("Writing config and stub files for sfrhist, mcrx, and broadband.\n")
         # In theory these values should be in a config file not the param, 
         # but Sunrise seems to like it this way.
-        with open(PARAM_FILE) as f:
-            f.write("snaptime " + snaptime + "\n")
-            f.write("UnitMass_in_g " + UnitMass + "\n")
-            f.write("UnitLength_in_cm " + UnitLength + "\n")
-            f.write("UnitVelocity_in_cm_per_s " + UnitVelocity + "\n")
-            f.write("m_star_creation " + MStarCreation + "\n")
+        with open(PARAM_FILE, "w") as f:
+            f.write("snaptime " + str(snaptime) + "\n")
+            f.write("UnitMass_in_g " + str(UnitMass) + "\n")
+            f.write("UnitLength_in_cm " + str(UnitLength) + "\n")
+            f.write("UnitVelocity_in_cm_per_s " + str(UnitVelocity) + "\n")
+            f.write("m_star_creation " + str(MStarCreation) + "\n")
             f.write("smoothing_file " + fullRunDir + "smooth.hsm\n")
             f.writelines(originalParams)
+        # Write sfrhist config files.
         with open("sfrhist-" + snapName + ".config", "w") as f:
             f.write("include_file " + fullRunDir + "sfrhist.stub\n")
             f.write("snapshot_file " + fullRunDir + "SNAPFILEASC\n")
             f.write("output_file " + fullRunDir + SNAPFILEASC[:-6] + ".sfrhist.fits\n")
             f.write("simparfile " + fullRunDir + PARAM_FILE + "\n")
-            f.write("use_counters false\n")
         with open("sfrhist.stub", "w") as f:
             f.write("runname " + GALAXY_SET + "-" + GALAXY_NAME + "-" + timeStep + "\n")
             f.write("max_level " + MAX_LEVEL + "\n")
@@ -199,49 +212,60 @@ def main():
             f.write("stellarmodelfile " + SHARE_DIR + "Patrik-imfKroupa-Zmulti-ml.fits\n")
             f.write("mappings_sed_file " + SHARE_DIR + "Smodel.fits\n")
             f.write("mcrx_data_dir " + SRC_DIR + "sunrise/src/\n")
+            if not PHYS: f.write("comoving_units true\n")
+            f.write("use_counters false\n")
             with open(WORKING_DIR + SFRHIST_STUB) as f2:
                 f.writelines(f2.readlines())
+        # Write mcrx config files.
         with open("mcrx-" + snapName + ".config", "w") as f:
             f.write("include_file " + fullRunDir + "mcrx.stub\n")
             f.write("input_file " + fullRunDir + SNAPFILEASC[:-6] + ".sfrhist.fits\n")
             f.write("output_file " + fullRunDir + SNAPFILEASC[:-6] + ".mcrx.fits\n")
-            f.write("use_counters false\n")
         with open("mcrx.stub", "w") as f:
             f.write("n_threads " + N_THREADS + "\n")
             f.write("mcrx_data_dir " + SRC_DIR + "sunrise/src/\n")
             f.write("grain_data_directory " + SRC_DIR + "crossections\n")
             f.write("camera_positions " + fullRunDir + CAMPOS_FILE + "\n")
-            f.write("camerafov " + str(int(cutDiameter) + 20) + "\n")
+            f.write("camerafov " + str(int(cutDiameter)) + "\n")
+            f.write("use_counters false\n")
             with open(WORKING_DIR + MCRX_STUB) as f2:
                 f.writelines(f2.readlines())
+        # Write broadband config files.
         with open("broadband-" + snapName + ".config", "w") as f:
             f.write("include_file " + fullRunDir + "broadband.stub\n")
             f.write("input_file " + fullRunDir + SNAPFILEASC[:-6] + ".mcrx.fits\n")
             f.write("output_file " + fullRunDir + SNAPFILEASC[:-6] + ".broadband.fits\n")
-            f.write("use_counters false\n")
+        # Also make redshifted images if necessary
+        if nonzeroRedshift:
+            with open("broadband-" + snapName + "-redshift.config", "w") as f:
+                f.write("include_file " + fullRunDir + "broadband.stub\n")
+                f.write("input_file " + fullRunDir + SNAPFILEASC[:-6] + ".mcrx.fits\n")
+                f.write("output_file " + fullRunDir + SNAPFILEASC[:-6] + ".broadband-redshift.fits\n")
+                f.write("redshift " + str(round(z,6)) + "\n")
         with open("broadband.stub", "w") as f:
             f.write("filter_file_directory " + SRC_DIR + "filters/\n")
             f.write("filter_list " + fullRunDir + FILTERS_FILE + "\n")
             f.write("filter_lamda_conversion 1e-10\n")
+            f.write("use_counters false\n")
         '''
         Step 7: Move the files into the final directory, and write out job submission commands.
         '''
-        '''
-        sys.stdout.write("Copying files from " + SIM_DIR + " to " + OUT_DIR + "/" + runDirName + ".")
-        for fileName in [SNAPFILEASCII, "smooth.hsm"]:
-            os.rename(SIM_DIR + fileName, fileName)
-        '''
-        shutil.copy(WORKING_DIR + "/" + CAMPOS_FILE, CAMPOS_FILE)
-        shutil.copy(WORKING_DIR + "/" + FILTERS_FILE, FILTERS_FILE)
-        sys.stdout.write("Writing bsub commands to runsfrhist.sh, runmcrx.sh, and runbroadband.sh.")
+        sys.stdout.write("Moving files from " + WORKING_DIR + " to " + OUT_DIR + "/" + runDirName + ".\n")
+        for fileName in [SNAPFILEASC, "smooth.hsm"]:
+            shutil.move(WORKING_DIR + fileName, fileName)
+        shutil.copy(WORKING_DIR + CAMPOS_FILE, CAMPOS_FILE)
+        shutil.copy(WORKING_DIR + FILTERS_FILE, FILTERS_FILE)
+        sys.stdout.write("Writing bsub commands to runsfrhist.sh, runmcrx.sh, and runbroadband.sh.\n")
         with open("runsfrhist.sh", "w") as f:
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "sfrhist.out -e " + fullRunDir + "sfrhist.err " + BIN_DIR + "sfrhist " + fullRunDir + "sfrhist-" + snapName + ".config\n") 
         with open("runmcrx.sh", "w") as f:
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "mcrx.out -e " + fullRunDir + "mcrx.err " + BIN_DIR + "mcrx " + fullRunDir + "mcrx-" + snapName + ".config\n") 
         with open("runbroadband.sh", "w") as f:
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband.out -e " + fullRunDir + "broadband.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + ".config\n") 
+            if nonzeroRedshift:
+                f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband-redshift.out -e " + fullRunDir + "broadband-redshift.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + "-redshift.config\n")
     # end for loop over time steps
-    if VERBOSE: sys.stdout.write("Finished. You're ready to run Sunrise!")
+    if VERBOSE: sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
     sys.exit(0)
     
 if __name__=="__main__":
