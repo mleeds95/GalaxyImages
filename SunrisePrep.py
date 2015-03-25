@@ -101,7 +101,6 @@ def main():
             if VERBOSE: sys.stdout.write("Converting to physical units\n")
             sim.physical_units()
         if VERBOSE: sys.stdout.write("Finding the latest time value\n")
-#TODO check if the iord file exists
         snaptime = float(sim.s["tform"].max())
         # grab the values of a (1 / 1+z) and z so we can account for redshift
         a = sim.properties["a"]
@@ -207,12 +206,14 @@ def main():
             f.write("runname " + GALAXY_SET + "-" + GALAXY_NAME + "-" + timeStep + "\n")
             f.write("max_level " + MAX_LEVEL + "\n")
             f.write("n_threads " + N_THREADS + "\n")
-            f.write("grid_min " + ("-" + CUT_RADIUS.split(" ")[0] + ".") * 3 + "\n")
-            f.write("grid_max " + (CUT_RADIUS.split(" ")[0] + ".") * 3 + "\n")
+            f.write("grid_min " + ("-" + CUT_RADIUS.split(" ")[0] + ". ") * 3 + "\n")
+            f.write("grid_max " + (CUT_RADIUS.split(" ")[0] + ". ") * 3 + "\n")
             f.write("stellarmodelfile " + SHARE_DIR + "Patrik-imfKroupa-Zmulti-ml.fits\n")
             f.write("mappings_sed_file " + SHARE_DIR + "Smodel.fits\n")
             f.write("mcrx_data_dir " + SRC_DIR + "sunrise/src/\n")
-            if not PHYS: f.write("comoving_units true\n")
+            if not PHYS: 
+                f.write("comoving_units true\n")
+                f.write("expansion_factor " + str(a) + "\n")
             f.write("use_counters false\n")
             with open(WORKING_DIR + SFRHIST_STUB) as f2:
                 f.writelines(f2.readlines())
@@ -241,7 +242,7 @@ def main():
                 f.write("include_file " + fullRunDir + "broadband.stub\n")
                 f.write("input_file " + fullRunDir + SNAPFILEASC[:-6] + ".mcrx.fits\n")
                 f.write("output_file " + fullRunDir + SNAPFILEASC[:-6] + ".broadband-redshift.fits\n")
-                f.write("redshift " + str(round(z,6)) + "\n")
+                f.write("redshift " + str(z) + "\n")
         with open("broadband.stub", "w") as f:
             f.write("filter_file_directory " + SRC_DIR + "filters/\n")
             f.write("filter_list " + fullRunDir + FILTERS_FILE + "\n")
