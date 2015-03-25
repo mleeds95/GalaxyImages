@@ -199,11 +199,12 @@ def main():
         # Write sfrhist config files.
         with open("sfrhist-" + snapName + ".config", "w") as f:
             f.write("include_file " + fullRunDir + "sfrhist.stub\n")
-            f.write("snapshot_file " + fullRunDir + "SNAPFILEASC\n")
+            f.write("snapshot_file " + fullRunDir + SNAPFILEASC + "\n")
             f.write("output_file " + fullRunDir + SNAPFILEASC[:-6] + ".sfrhist.fits\n")
             f.write("simparfile " + fullRunDir + PARAM_FILE + "\n")
         with open("sfrhist.stub", "w") as f:
             f.write("runname " + GALAXY_SET + "-" + GALAXY_NAME + "-" + timeStep + "\n")
+            f.write("nbodycod pkdgrav\n")
             f.write("max_level " + MAX_LEVEL + "\n")
             f.write("n_threads " + N_THREADS + "\n")
             f.write("grid_min " + ("-" + CUT_RADIUS.split(" ")[0] + ". ") * 3 + "\n")
@@ -252,19 +253,26 @@ def main():
         Step 7: Move the files into the final directory, and write out job submission commands.
         '''
         sys.stdout.write("Moving files from " + WORKING_DIR + " to " + OUT_DIR + "/" + runDirName + ".\n")
-        for fileName in [SNAPFILEASC, "smooth.hsm"]:
+        for fileName in (SNAPFILEASC, "smooth.hsm"):
             shutil.move(WORKING_DIR + fileName, fileName)
         shutil.copy(WORKING_DIR + CAMPOS_FILE, CAMPOS_FILE)
         shutil.copy(WORKING_DIR + FILTERS_FILE, FILTERS_FILE)
         sys.stdout.write("Writing bsub commands to runsfrhist.sh, runmcrx.sh, and runbroadband.sh.\n")
         with open("runsfrhist.sh", "w") as f:
+            f.write("rm " + fullRunDir + "sfrhist.out " + fullRunDir + "sfrhist.err\n")
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "sfrhist.out -e " + fullRunDir + "sfrhist.err " + BIN_DIR + "sfrhist " + fullRunDir + "sfrhist-" + snapName + ".config\n") 
+        os.chmod("runsfrhist.sh", 0744)
         with open("runmcrx.sh", "w") as f:
+            f.write("rm " + fullRunDir + "mcrx.out " + fullRunDir + "mcrx.err\n")
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "mcrx.out -e " + fullRunDir + "mcrx.err " + BIN_DIR + "mcrx " + fullRunDir + "mcrx-" + snapName + ".config\n") 
+        os.chmod("runmcrx.sh", 0744)
         with open("runbroadband.sh", "w") as f:
+            f.write("rm " + fullRunDir + "broadband.out " + fullRunDir + "broadband.err\n")
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband.out -e " + fullRunDir + "broadband.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + ".config\n") 
             if nonzeroRedshift:
+                f.write("rm " + fullRunDir + "broadband-redshift.out " + fullRunDir + "broadband-redshift.err\n")
                 f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband-redshift.out -e " + fullRunDir + "broadband-redshift.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + "-redshift.config\n")
+        os.chmod("runbroadband.sh", 0744)
     # end for loop over time steps
     if VERBOSE: sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
     sys.exit(0)
