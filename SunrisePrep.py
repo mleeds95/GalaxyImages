@@ -226,7 +226,7 @@ def main():
         with open("mcrx.stub", "w") as f:
             f.write("n_threads " + N_THREADS + "\n")
             f.write("mcrx_data_dir " + SRC_DIR + "sunrise/src/\n")
-            f.write("grain_data_directory " + SRC_DIR + "crossections\n")
+            f.write("grain_data_directory " + SRC_DIR + "crosssections\n")
             f.write("camera_positions " + fullRunDir + CAMPOS_FILE + "\n")
             f.write("camerafov " + str(int(cutDiameter)) + "\n")
             f.write("use_counters false\n")
@@ -259,18 +259,18 @@ def main():
         shutil.copy(WORKING_DIR + FILTERS_FILE, FILTERS_FILE)
         sys.stdout.write("Writing bsub commands to runsfrhist.sh, runmcrx.sh, and runbroadband.sh.\n")
         with open("runsfrhist.sh", "w") as f:
-            f.write("rm " + fullRunDir + "sfrhist.out " + fullRunDir + "sfrhist.err\n")
+            f.write("rm -f " + fullRunDir + "sfrhist.out " + fullRunDir + "sfrhist.err " + fullRunDir + SNAPFILEASC[:-6] + ".sfrhist.fits\n")
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "sfrhist.out -e " + fullRunDir + "sfrhist.err " + BIN_DIR + "sfrhist " + fullRunDir + "sfrhist-" + snapName + ".config\n") 
         os.chmod("runsfrhist.sh", 0744)
         with open("runmcrx.sh", "w") as f:
-            f.write("rm " + fullRunDir + "mcrx.out " + fullRunDir + "mcrx.err\n")
+            f.write("rm -f " + fullRunDir + "mcrx.out " + fullRunDir + "mcrx.err " + fullRunDir + SNAPFILEASC[:-6] + ".mcrx.fits\n")
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "mcrx.out -e " + fullRunDir + "mcrx.err " + BIN_DIR + "mcrx " + fullRunDir + "mcrx-" + snapName + ".config\n") 
         os.chmod("runmcrx.sh", 0744)
         with open("runbroadband.sh", "w") as f:
-            f.write("rm " + fullRunDir + "broadband.out " + fullRunDir + "broadband.err\n")
+            f.write("rm -f " + fullRunDir + "broadband.out " + fullRunDir + "broadband.err " + fullRunDir + SNAPFILEASC[:-6] + ".broadband.fits\n")
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband.out -e " + fullRunDir + "broadband.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + ".config\n") 
             if nonzeroRedshift:
-                f.write("rm " + fullRunDir + "broadband-redshift.out " + fullRunDir + "broadband-redshift.err\n")
+                f.write("rm -f " + fullRunDir + "broadband-redshift.out " + fullRunDir + "broadband-redshift.err " + fullRunDir + SNAPFILEASC[:-6] + ".broadband-redshift.fits\n")
                 f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband-redshift.out -e " + fullRunDir + "broadband-redshift.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + "-redshift.config\n")
         os.chmod("runbroadband.sh", 0744)
     # end for loop over time steps
