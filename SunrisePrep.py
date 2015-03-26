@@ -247,7 +247,7 @@ def main():
         with open("broadband.stub", "w") as f:
             f.write("filter_file_directory " + SRC_DIR + "filters/\n")
             f.write("filter_list " + fullRunDir + FILTERS_FILE + "\n")
-            f.write("filter_lamda_conversion 1e-10\n")
+            f.write("filter_lambda_conversion 1e-10\n")
             f.write("use_counters false\n")
         '''
         Step 7: Move the files into the final directory, and write out job submission commands.
