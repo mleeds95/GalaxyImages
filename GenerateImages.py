@@ -57,7 +57,7 @@ def main():
         fitsFilename = ""
         # Find the broadband FITS file for this time step.
         for f in listdir(curdir):
-            if match(r"^" + galaxyName + "\." + timeStep + "\.\d+kpc\.(phys)|(sim)\.broadband(-redshift)?\.fits$", f) != None:
+            if match(r"^" + galaxyName + "\." + timeStep + "\.\d+kpc\.(phys|sim)\.broadband(-redshift)?\.fits$", f) != None:
                 fitsFilename = f
                 break
         if len(fitsFilename) == 0:
