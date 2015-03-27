@@ -56,20 +56,21 @@ def main():
             sys.stderr.write("Error: configured directory does not exist.")
             sys.exit(1)
     GALAXY_NAME = config.get("Sunrise Prep", "GALAXY_NAME")
-    # If a time step isn't set, run on them all.
-    ALL_TIMESTEPS = False
+    listOfTimesteps = []
     try:
         TIME_STEP = config.get("Sunrise Prep", "TIME_STEP")
-        if len(TIME_STEP) == 0: ALL_TIMESTEPS = True
+        if len(TIME_STEP) > 0:
+            listOfTimesteps = TIME_STEP.split(",")
     except ConfigParser.NoOptionError:
-        ALL_TIMESTEPS = True 
-    listOfTimesteps = []
-    if ALL_TIMESTEPS:
+        pass
+    # If no time steps were specified, look for them.
+    if len(listOfTimesteps) == 0:
         for f in os.listdir(SIM_DIR):
             if re.match(r"^" + GALAXY_NAME + "\.\d+$", f) != None:
                 listOfTimesteps.append(f.split(".")[1])
-    else:
-        listOfTimesteps.append(TIME_STEP)
+    if len(listOfTimesteps) == 0: # we couldn't find any
+        sys.stderr.write("Error: No time steps specified or found in " + SIM_DIR + "\n")
+        sys.exit(1)
     GALAXY_SET = config.get("Sunrise Prep", "GALAXY_SET")
     PARAM_FILE = config.get("Sunrise Prep", "PARAM_FILE")
     PHYS = config.getboolean("Sunrise Prep", "PHYS")
