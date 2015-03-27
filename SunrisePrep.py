@@ -4,7 +4,7 @@
 #
 # File: SunrisePrep.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
-# Last Edit: 2015-03-24
+# Last Edit: 2015-03-26
 # Purpose: Use PyNBody to extract the galaxy and its surroundings
 # for a certain radius from the larger simulation file, run SMOOTH on it,
 # and generate the Sunrise config files. Please ensure pynbody is installed, 
@@ -142,8 +142,8 @@ def main():
         Step 4: Write the snapshot section to the disk in std tipsy and ASCII formats.
         '''
         os.chdir(WORKING_DIR)
-        # output filename format: <galaxy name>.<time step>.<diameter>.phys|sim.stdtipsy|ascii
-        SNAPFILE = GALAXY_NAME + "." + TIME_STEP + "." + cutDiameter
+        # output filename format: <galaxy name>.<time step>.<diameter>kpc.phys|sim.stdtipsy|ascii
+        SNAPFILE = GALAXY_NAME + "." + TIME_STEP + "." + cutDiameter + "kpc"
         SNAPFILE += (".phys" if PHYS else ".sim")
         SNAPFILESTD = SNAPFILE + ".stdtipsy"
         SNAPFILEASC = SNAPFILE + ".ascii"

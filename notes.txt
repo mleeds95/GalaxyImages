@@ -38,6 +38,10 @@ Notes for how to run a simulation from start to finish:
 Notes for what to do with output:
 1. You can use the fitsio python package to look at the tables in the fits file from broadband, 
 and find one of the CAMERAi-BROADBAND IMAGE-HDU's that you want to look at.
+For example:
+import fitsio
+fits = fitsio.FITS('fname')
+print(fits)
 2. Using the astropy.io.fits module, you can do:
 hdulist = fits.open(fname)
 table = hdulist[i].data # where i is the extnum for FILTERS
@@ -47,6 +51,9 @@ Looking at that, figure out the indices of the filters you're interested in.
 Run "ipython --pylab"
 import make_color, pyfits
 f = pyfits.open(fname)
+f.info() # to see headers
+t = f['filters'].data
+t['filter'] # see the list of filters
 im = transpose(f['CAMERAi-BROADBAND'].data, axes=(1,2,0)) # filling in i
 imshow(make_color.make_image(im, band=(x,y,z), scale="auto", return_jpeg=False)) # where x,y,z are the filter indices from above 
 To see the raw image: imshow(im[:,:,0])
