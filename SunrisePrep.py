@@ -4,7 +4,7 @@
 #
 # File: SunrisePrep.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
-# Last Edit: 2015-03-26
+# Last Edit: 2015-03-29
 # Purpose: Use PyNBody to extract the galaxy and its surroundings
 # for a certain radius from the larger simulation file, run SMOOTH on it,
 # and generate the Sunrise config files. Please ensure pynbody is installed, 
@@ -253,7 +253,7 @@ def main():
         '''
         Step 7: Move the files into the final directory, and write out job submission commands.
         '''
-        sys.stdout.write("Moving files from " + WORKING_DIR + " to " + OUT_DIR + "/" + runDirName + ".\n")
+        sys.stdout.write("Moving files from " + WORKING_DIR + " to " + OUT_DIR + runDirName + ".\n")
         for fileName in (SNAPFILEASC, "smooth.hsm"):
             shutil.move(WORKING_DIR + fileName, fileName)
         shutil.copy(WORKING_DIR + CAMPOS_FILE, CAMPOS_FILE)
