@@ -25,6 +25,7 @@ import ConfigParser
 import re
 
 CONFIG_FILE = "config.ini"
+SECTION_NAME = "Sunrise Prep"
 WORKING_DIR = os.getcwd() + "/"
 
 def main():
@@ -34,17 +35,17 @@ def main():
     config = ConfigParser.SafeConfigParser()
     sys.stdout.write("Reading " + CONFIG_FILE + "\n")
     config.read(CONFIG_FILE)
-    if not config.has_section("Sunrise Prep"):
-        sys.stderr.write("Error: No \"Sunrise Prep\" section found in " + CONFIG_FILE + ".\n")
+    if not config.has_section(SECTION_NAME):
+        sys.stderr.write("Error: No \"" + SECTION_NAME + "\" section found in " + CONFIG_FILE + ".\n")
         sys.exit(1)
-    VERBOSE = config.getboolean("Sunrise Prep", "VERBOSE")
+    VERBOSE = config.getboolean(SECTION_NAME, "VERBOSE")
     if VERBOSE: pynbody.config["verbose"] = True
-    SIM_DIR = config.get("Sunrise Prep", "SIM_DIR")
-    RUN_DIR = config.get("Sunrise Prep", "RUN_DIR")
-    OUT_DIR = config.get("Sunrise Prep", "OUT_DIR")
-    SHARE_DIR = config.get("Sunrise Prep", "SHARE_DIR")
-    SRC_DIR = config.get("Sunrise Prep" , "SRC_DIR")
-    BIN_DIR = config.get("Sunrise Prep", "BIN_DIR")
+    SIM_DIR = config.get(SECTION_NAME, "SIM_DIR")
+    RUN_DIR = config.get(SECTION_NAME, "RUN_DIR")
+    OUT_DIR = config.get(SECTION_NAME, "OUT_DIR")
+    SHARE_DIR = config.get(SECTION_NAME, "SHARE_DIR")
+    SRC_DIR = config.get(SECTION_NAME , "SRC_DIR")
+    BIN_DIR = config.get(SECTION_NAME, "BIN_DIR")
     # Enforce the use of absulute pathing (assuming a Unix-like file system).
     for directory in (SIM_DIR, RUN_DIR, OUT_DIR, SHARE_DIR, SRC_DIR, BIN_DIR):
         if directory[0] != "/" or directory[-1] != "/":
@@ -55,10 +56,10 @@ def main():
         if not os.path.isdir(directory):
             sys.stderr.write("Error: configured directory does not exist.")
             sys.exit(1)
-    GALAXY_NAME = config.get("Sunrise Prep", "GALAXY_NAME")
+    GALAXY_NAME = config.get(SECTION_NAME, "GALAXY_NAME")
     listOfTimesteps = []
     try:
-        TIME_STEP = config.get("Sunrise Prep", "TIME_STEP")
+        TIME_STEP = config.get(SECTION_NAME, "TIME_STEP")
         if len(TIME_STEP) > 0:
             listOfTimesteps = TIME_STEP.split(",")
     except ConfigParser.NoOptionError:
@@ -71,19 +72,20 @@ def main():
     if len(listOfTimesteps) == 0: # we couldn't find any
         sys.stderr.write("Error: No time steps specified or found in " + SIM_DIR + "\n")
         sys.exit(1)
-    GALAXY_SET = config.get("Sunrise Prep", "GALAXY_SET")
-    PARAM_FILE = config.get("Sunrise Prep", "PARAM_FILE")
-    PHYS = config.getboolean("Sunrise Prep", "PHYS")
-    CUBE = config.getboolean("Sunrise Prep", "CUBE")
-    CUT_RADIUS = config.get("Sunrise Prep", "CUT_RADIUS")
+    GALAXY_SET = config.get(SECTION_NAME, "GALAXY_SET")
+    PARAM_FILE = config.get(SECTION_NAME, "PARAM_FILE")
+    PHYS = config.getboolean(SECTION_NAME, "PHYS")
+    CUBE = config.getboolean(SECTION_NAME, "CUBE")
+    CUT_RADIUS = config.get(SECTION_NAME, "CUT_RADIUS")
     cutDiameter = str(int(CUT_RADIUS.split(" ")[0]) * 2)
-    CAMPOS_FILE = config.get("Sunrise Prep", "CAMPOS_FILE")
-    FILTERS_FILE = config.get("Sunrise Prep", "FILTERS_FILE")
-    QUEUE_NAME = config.get("Sunrise Prep", "QUEUE_NAME")
-    MAX_LEVEL = config.get("Sunrise Prep", "MAX_LEVEL")
-    N_THREADS = config.get("Sunrise Prep", "N_THREADS")
-    SFRHIST_STUB = config.get("Sunrise Prep", "SFRHIST_STUB")
-    MCRX_STUB = config.get("Sunrise Prep", "MCRX_STUB")
+    CAMPOS_FILE = config.get(SECTION_NAME, "CAMPOS_FILE")
+    FILTERS_FILE = config.get(SECTION_NAME, "FILTERS_FILE")
+    QUEUE_NAME = config.get(SECTION_NAME, "QUEUE_NAME")
+    MAX_LEVEL = config.get(SECTION_NAME, "MAX_LEVEL")
+    N_THREADS = config.get(SECTION_NAME, "N_THREADS")
+    SFRHIST_STUB = config.get(SECTION_NAME, "SFRHIST_STUB")
+    MCRX_STUB = config.get(SECTION_NAME, "MCRX_STUB")
+    AUTO_RUN = config.getboolean(SECTION_NAME, "AUTO_RUN")
     # Iterate over all the time steps generating appropriate files.
     for timeStep in listOfTimesteps:
         '''
@@ -260,14 +262,21 @@ def main():
         shutil.copy(WORKING_DIR + FILTERS_FILE, FILTERS_FILE)
         sys.stdout.write("Writing bsub commands to runsfrhist.sh, runmcrx.sh, and runbroadband.sh.\n")
         with open("runsfrhist.sh", "w") as f:
+            f.write("#!/bin/bash\n\n")
             f.write("rm -f " + fullRunDir + "sfrhist.out " + fullRunDir + "sfrhist.err " + fullRunDir + SNAPFILEASC[:-6] + ".sfrhist.fits\n")
-            f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "sfrhist.out -e " + fullRunDir + "sfrhist.err " + BIN_DIR + "sfrhist " + fullRunDir + "sfrhist-" + snapName + ".config\n") 
+            f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "sfrhist.out -e " + fullRunDir + "sfrhist.err")
+            if AUTO_RUN: f.write(" -Ep \"bash " + fullRunDir + "runmcrx.sh\"") 
+            f.write(" " + BIN_DIR + "sfrhist " + fullRunDir + "sfrhist-" + snapName + ".config\n") 
         os.chmod("runsfrhist.sh", 0744)
         with open("runmcrx.sh", "w") as f:
+            f.write("#!/bin/bash\n\n")
             f.write("rm -f " + fullRunDir + "mcrx.out " + fullRunDir + "mcrx.err " + fullRunDir + SNAPFILEASC[:-6] + ".mcrx.fits\n")
-            f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "mcrx.out -e " + fullRunDir + "mcrx.err " + BIN_DIR + "mcrx " + fullRunDir + "mcrx-" + snapName + ".config\n") 
+            f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "mcrx.out -e " + fullRunDir + "mcrx.err")
+            if AUTO_RUN: f.write(" -Ep \"bash " + fullRunDir + "runbroadband.sh\"") 
+            f.write(" " + BIN_DIR + "mcrx " + fullRunDir + "mcrx-" + snapName + ".config\n") 
         os.chmod("runmcrx.sh", 0744)
         with open("runbroadband.sh", "w") as f:
+            f.write("#!/bin/bash\n\n")
             f.write("rm -f " + fullRunDir + "broadband.out " + fullRunDir + "broadband.err " + fullRunDir + SNAPFILEASC[:-6] + ".broadband.fits\n")
             f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband.out -e " + fullRunDir + "broadband.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + ".config\n") 
             if nonzeroRedshift:
