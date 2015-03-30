@@ -26,7 +26,7 @@ import re
 
 CONFIG_FILE = "config.ini"
 SECTION_NAME = "Sunrise Prep"
-WORKING_DIR = os.getcwd() + "/"
+WORKING_DIR = os.getcwd() + os.sep
 
 def main():
     '''
@@ -48,8 +48,8 @@ def main():
     BIN_DIR = config.get(SECTION_NAME, "BIN_DIR")
     # Enforce the use of absulute pathing (assuming a Unix-like file system).
     for directory in (SIM_DIR, RUN_DIR, OUT_DIR, SHARE_DIR, SRC_DIR, BIN_DIR):
-        if directory[0] != "/" or directory[-1] != "/":
-            sys.stderr.write("Error: incorrectly formatted directory config parameter. It should start and end with a \"/\"")
+        if directory[0] != os.sep or directory[-1] != os.sep:
+            sys.stderr.write("Error: incorrectly formatted directory config parameter. It should start and end with a '" + os.sep + "'\n")
             sys.exit(1)
     # Make sure the local directories exist.
     for directory in (SIM_DIR, OUT_DIR):
@@ -59,9 +59,9 @@ def main():
     GALAXY_NAME = config.get(SECTION_NAME, "GALAXY_NAME")
     listOfTimesteps = []
     try:
-        TIME_STEP = config.get(SECTION_NAME, "TIME_STEP")
-        if len(TIME_STEP) > 0:
-            listOfTimesteps = TIME_STEP.split(",")
+        TIME_STEPS = config.get("Sunrise Prep", "TIME_STEPS")
+        if len(TIME_STEPS) > 0:
+            listOfTimesteps = TIME_STEPS.split(",")
     except ConfigParser.NoOptionError:
         pass
     # If no time steps were specified, look for them.
@@ -146,7 +146,7 @@ def main():
         '''
         os.chdir(WORKING_DIR)
         # output filename format: <galaxy name>.<time step>.<diameter>kpc.phys|sim.stdtipsy|ascii
-        SNAPFILE = GALAXY_NAME + "." + TIME_STEP + "." + cutDiameter + "kpc"
+        SNAPFILE = GALAXY_NAME + "." + timeStep + "." + cutDiameter + "kpc"
         SNAPFILE += (".phys" if PHYS else ".sim")
         SNAPFILESTD = SNAPFILE + ".stdtipsy"
         SNAPFILEASC = SNAPFILE + ".ascii"
