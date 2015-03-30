@@ -2,8 +2,6 @@ Aristotle Info:
 130.160.99.206
 /Volumes/PROMISE PEGASUS/MUGS
 Notes:
-100 kiloparsecs radius
-G15784. snapshot
 mugs.mcmaster.ca
 physical units in pynbody
 a = 1/(1+z), a is scale factor, z is redshift
@@ -12,28 +10,6 @@ first file is simulation info
 -AHF is the halo finder that finds the galaxy in the simulation
 -blue stars are younger, red are older
 in galaxies, the dark matter, star particles and dust are the most important
-
-Due to "ValueError: invalid literal for int() with base 10" errors when 
-running sim.halos() (in _load_ahf_particle_block), I changed lines 
-2 and 4290038 
-in g15784.01024.z0.000.AHF_particles
-useful AHF docs: http://popia.ft.uam.es/AHF/files/AHF.pdf
-appears to be erroring here:
-https://github.com/pynbody/pynbody/blob/d561474a5fe36d5dc2f839a7e951acd88db103d5/pynbody/halo.py#L361
-
-next:
-radius of 50 ExtractGalaxy
-try max_level 11
-flip th, phi
-
-Notes for how to run a simulation from start to finish:
-1. Run "ExtractGalaxy.py" to generate a fname.stdtipsy file in the same directory as fname.
-2. Run "cat fname.sphere | ./std2ascii > fname.ascii". You can find std2ascii in the tipsy_tools directory.
-3. Run "./smoothbin hsmooth < fname.sphere" to generate a smooth.hsm file.
-4. Tar up the smooth.hsm and fname.ascii files and send them to rc2.
-5. Ensure sfrhist's config files are correct.
-6. Start sfrhist: "bsub -q main -o ~/sfrhist.out.1 -e ~/sfrhist.err.1 ./sfrhist sfrhist.config"
-
 
 Notes for what to do with output:
 1. You can use the fitsio python package to look at the tables in the fits file from broadband, 

@@ -4,7 +4,8 @@
 #
 # File: GenerateImages.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
-# Last Edit: 2015-03-29
+# License: GNU GPL v3 <gnu.org/licenses>
+# Last Edit: 2015-03-30
 # Purpose: Generate color RGB images in JPEG format from Sunrise's broadband
 # output using Patrik's make_color module. Please run this:
 # hg clone https://bitbucket.org/lutorm/python

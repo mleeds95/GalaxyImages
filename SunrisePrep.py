@@ -4,14 +4,16 @@
 #
 # File: SunrisePrep.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
-# Last Edit: 2015-03-29
+# License: GNU GPL v3 <gnu.org/licenses>
+# Last Edit: 2015-03-30
 # Purpose: Use PyNBody to extract the galaxy and its surroundings
 # for a certain radius from the larger simulation file, run SMOOTH on it,
-# and generate the Sunrise config files. Please ensure pynbody is installed, 
-# std2ascii and smooth are in your PATH, and all necessary parameters are set.
-# Campos, filters, sfrhist/mcrx stub files, and 'config.ini' should be in the
-# current directory. Note that the format <galaxy name>.<time step>
-# for simulation files is hard-coded, as is the format for param files.
+# generate the Sunrise config files, and write job submission scripts. Please 
+# ensure pynbody is installed, std2ascii and smooth are in your PATH, and all 
+# necessary parameters are set. Campos, filters, sfrhist/mcrx stub files, and 
+# 'config.ini' should be in the current directory. Note that the format 
+# <galaxy name>.<time step> for simulation files is hard-coded, as is the 
+# format for param files.
 #
 ###############################################################################
 
@@ -29,9 +31,9 @@ SECTION_NAME = "Sunrise Prep"
 WORKING_DIR = os.getcwd() + os.sep
 
 def main():
-    '''
-    Step 1: Read the config file and initialize listOfTimesteps
-    '''
+    #
+    #Step 1: Read the config file and initialize listOfTimesteps
+    #
     config = ConfigParser.SafeConfigParser()
     sys.stdout.write("Reading " + CONFIG_FILE + "\n")
     config.read(CONFIG_FILE)
@@ -88,9 +90,9 @@ def main():
     AUTO_RUN = config.getboolean(SECTION_NAME, "AUTO_RUN")
     # Iterate over all the time steps generating appropriate files.
     for timeStep in listOfTimesteps:
-        '''
-        Step 2: Load the simulation snapshot and calculate some values for the Sunrise config files.
-        '''
+        #
+        #Step 2: Load the simulation snapshot and calculate some values for the Sunrise config files.
+        #
         os.chdir(SIM_DIR)
         snapName = GALAXY_NAME + "." + timeStep
         sys.stdout.write("Loading galaxy simulation file " + SIM_DIR + snapName + "\n")
@@ -125,9 +127,9 @@ def main():
                     if line.startswith("dInitStarMass"):
                         MStarCreation = float(line.split("=")[1].strip()) 
             UnitVelocity = 1.72756e8 * math.sqrt(a)
-        '''
-        Step 3: Cut out the specified radius.
-        '''
+        #
+        #Step 3: Cut out the specified radius.
+        #
         if VERBOSE: sys.stdout.write("Finding the largest halo\n")
         h1 = sim.halos()[1]
         if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(h1.g), len(h1.d), len(h1.s)))
@@ -141,9 +143,9 @@ def main():
         else:
             cut = h1[pynbody.filt.Sphere(CUT_RADIUS)]
         if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(cut.g), len(cut.d), len(cut.s)))
-        '''
-        Step 4: Write the snapshot section to the disk in std tipsy and ASCII formats.
-        '''
+        #
+        #Step 4: Write the snapshot section to the disk in std tipsy and ASCII formats.
+        #
         os.chdir(WORKING_DIR)
         # output filename format: <galaxy name>.<time step>.<diameter>kpc.phys|sim.stdtipsy|ascii
         SNAPFILE = GALAXY_NAME + "." + timeStep + "." + cutDiameter + "kpc"
@@ -161,9 +163,9 @@ def main():
             sys.stderr.write("Error running std2ascii. Perhaps it's not in your PATH?\n")
             FNULL.close()
             sys.exit(1)
-        '''
-        Step 5: Run SMOOTH.
-        '''
+        #
+        #Step 5: Run SMOOTH.
+        #
         sys.stdout.write("Writing smoothing lengths to smooth.hsm\n")
         cmd = "smooth hsmooth < " + SNAPFILESTD
         p2 = subprocess.Popen(cmd, shell=True, stdout=FNULL, stderr=FNULL)
@@ -174,9 +176,9 @@ def main():
             sys.exit(1)
         os.remove(SNAPFILESTD) # Sunrise just needs the ASCII version
         FNULL.close()
-        '''
-        Step 6: Generate Sunrise config files.
-        '''
+        #
+        #Step 6: Generate Sunrise config files.
+        #
         with open(SIM_DIR + PARAM_FILE) as f:
             originalParams = f.readlines()
         # runDirName is the name of the directory in OUT_DIR, and the name of the one in RUN_DIR
@@ -252,9 +254,9 @@ def main():
             f.write("filter_list " + fullRunDir + FILTERS_FILE + "\n")
             f.write("filter_lambda_conversion 1e-10\n")
             f.write("use_counters false\n")
-        '''
-        Step 7: Move the files into the final directory, and write out job submission commands.
-        '''
+        #
+        #Step 7: Move the files into the final directory, and write out job submission commands.
+        #
         sys.stdout.write("Moving files from " + WORKING_DIR + " to " + OUT_DIR + runDirName + ".\n")
         for fileName in (SNAPFILEASC, "smooth.hsm"):
             shutil.move(WORKING_DIR + fileName, fileName)
@@ -284,6 +286,20 @@ def main():
                 f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband-redshift.out -e " + fullRunDir + "broadband-redshift.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + "-redshift.config\n")
         os.chmod("runbroadband.sh", 0744)
     # end for loop over time steps
+    # write a file, runall-<galaxy name>-t<min timestep>[-<max timestep>].sh in OUT_DIR that will start sfrhist for all the timesteps
+    os.chdir(OUT_DIR)
+    listOfTimestepInts = [int(x) for x in listOfTimesteps]
+    minTimestep = min(listOfTimestepInts)
+    maxTimestep = max(listOfTimestepInts)
+    jobRunner = "runall-" + GALAXY_NAME + "-t" + format(minTimestep, '05')
+    if len(listOfTimesteps) > 1: jobRunner += "-" + format(maxTimestep, '05')
+    jobRunner += ".sh"
+    sys.stdout.write("Writing a script to start jobs for each timestep: " + jobRunner + "\n")
+    with open(jobRunner, "w") as f:
+        f.write("#!/bin/bash\n\n")
+        for timeStep in listOfTimesteps:
+            f.write(RUN_DIR + GALAXY_NAME + "-" + timeStep + "-sunrise/runsfrhist.sh\n")
+    os.chmod(jobRunner, 0744)
     if VERBOSE: sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
     sys.exit(0)
     
