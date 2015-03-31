@@ -90,7 +90,8 @@ def main():
     AUTO_RUN = config.getboolean(SECTION_NAME, "AUTO_RUN")
     TARBALL = config.getboolean(SECTION_NAME, "TARBALL")
     # Iterate over all the time steps generating appropriate files.
-    for timeStep in listOfTimesteps:
+    # Notice that we iterate over a copy of the list so we can remove timesteps with no stars.
+    for timeStep in listOfTimesteps[:]:
         #
         #Step 2: Load the simulation snapshot and calculate some values for the Sunrise config files.
         #
@@ -102,6 +103,8 @@ def main():
         # If there aren't any stars yet, skip the timestep.
         if len(sim.s) == 0:
             sys.stdout.write("Skipping " + snapName + " since there aren't any stars in it.\n")
+            # remove the timestep so we don't include it in the controller script later.
+            listOfTimesteps.remove(timeStep)
             continue
         if PHYS:
             if VERBOSE: sys.stdout.write("Converting to physical units\n")
@@ -301,10 +304,11 @@ def main():
         for timeStep in listOfTimesteps:
             f.write(RUN_DIR + GALAXY_NAME + "-" + timeStep + "-sunrise/runsfrhist.sh\n")
     os.chmod(jobRunner, 0744)
-    # make a gzipped tarball of the whole output directory
+    # make a gzipped tarball, <galaxy name>-t<min timestep>[-<max timestep>].tgz, 
+    # of the relevant parts of the output directory
     if TARBALL:
         sys.stdout.write("Tarring up the output directory.\n")
-        cmd = "tar czf " + jobRunner[7:-3] + ".tgz *"
+        cmd = "tar czf " + jobRunner[7:-3] + ".tgz *" + GALAXY_NAME + "*"
         p3 = subprocess.Popen(cmd, shell=True)
         p3.wait()
         if p3.returncode != os.EX_OK:
