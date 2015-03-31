@@ -88,6 +88,7 @@ def main():
     SFRHIST_STUB = config.get(SECTION_NAME, "SFRHIST_STUB")
     MCRX_STUB = config.get(SECTION_NAME, "MCRX_STUB")
     AUTO_RUN = config.getboolean(SECTION_NAME, "AUTO_RUN")
+    TARBALL = config.getboolean(SECTION_NAME, "TARBALL")
     # Iterate over all the time steps generating appropriate files.
     for timeStep in listOfTimesteps:
         #
@@ -300,6 +301,15 @@ def main():
         for timeStep in listOfTimesteps:
             f.write(RUN_DIR + GALAXY_NAME + "-" + timeStep + "-sunrise/runsfrhist.sh\n")
     os.chmod(jobRunner, 0744)
+    # make a gzipped tarball of the whole output directory
+    if TARBALL:
+        sys.stdout.write("Tarring up the output directory.\n")
+        cmd = "tar czf " + jobRunner[7:-3] + ".tgz *"
+        p3 = subprocess.Popen(cmd, shell=True)
+        p3.wait()
+        if p3.returncode != os.EX_OK:
+            sys.stderr.write("Error encountered while tarring output directory!\n")
+            sys.exit(1)
     if VERBOSE: sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
     sys.exit(0)
     
