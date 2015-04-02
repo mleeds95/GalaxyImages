@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-##########################################################################################
+###############################################################################
 #
 # File: GenerateImages.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
@@ -17,9 +17,9 @@
 # GALAXY_NAME.TIME_STEP.DIAMETERkpc.phys|sim.broadband.fits
 # Image files will be written to 
 # SUNRISE_DIR/GALAXY_NAME-TIME_STEP-sunrise/ (or IMAGE_DIR/)
-# <galaxy name>.<time step>.<cut diameter>kpc.phys|sim-filter<i>-camera<i>[-redshift].jpg
+# <galaxy name>.<time step>.<cut diameter>kpc-filter<i>-camera<i>-ap<autopercentile>[-redshift].jpg
 #
-##########################################################################################
+###############################################################################
 
 from os import chdir, listdir, curdir, pardir, rename, sep
 from sys import stdout, stderr, exit
@@ -55,15 +55,16 @@ def main():
     IMAGE_DIR = config.get(SECTION_NAME, "IMAGE_DIR")
     if len(IMAGE_DIR) == 0: IMAGE_DIR = curdir + sep
     FILTER_NAMES = config.get(SECTION_NAME, "FILTER_NAMES")
-    AUTOPERCENTILE = config.getfloat(SECTION_NAME, "AUTOPERCENTILE")
-    # Make images for every perspective and filter set combination for every time step.
+    AUTOPERCENTILES = config.get(SECTION_NAME, "AUTOPERCENTILES").split(",")
+    # Make images for every perspective, filter set, and autopercentile combination for every time step.
     for timeStep in listOfTimesteps:
         folderName = GALAXY_NAME + "-" + timeStep + "-sunrise"
         chdir(folderName)
         # Find the broadband FITS file for this time step, and the redshifted one if it's there.
         fitsFiles = []
+        matchRE = r"^" + GALAXY_NAME + "\." + timeStep + "\.\d+kpc\.(phys|sim)\.broadband(-redshift)?\.fits$"
         for f in listdir(curdir):
-            if match(r"^" + GALAXY_NAME + "\." + timeStep + "\.\d+kpc\.(phys|sim)\.broadband(-redshift)?\.fits$", f) != None:
+            if match(matchRE, f) != None:
                 fitsFiles.append(f)
         if len(fitsFiles) == 0:
             stderr.write("Error: unable to find broadband FITS file for " + GALAXY_NAME + "-" + timeStep + "\n")
@@ -82,13 +83,16 @@ def main():
                 filterIndices = [str(filters.index(filterName + ".res")) for filterName in filterNames.split(",")]
                 filterSets.append(",".join(filterIndices))
             stdout.write("Generating RGB images for " + str(numCameras) + " perspectives with " + str(len(filters)) + " filters.\n")
-            # For each specified set of filters, make images from every perspective.
-            for i, filterSet in enumerate(filterSets):
-                outFile = (fitsFilename[:-24] if redShift else fitsFilename[:-15])
-                outFile += "-filter" + str(i) + "-camera%d"
-                outFile += ("-redshift.jpg" if redShift else ".jpg")
-                make_color.write_all(fitsFilename, "-BROADBAND", IMAGE_DIR + outFile, band=filterSet, 
-                                     scale="auto", autopercentile=AUTOPERCENTILE, overwrite=True)
+            # For each specified filter set, perspective, and autopercentile, make images.
+            for autoPercentile in AUTOPERCENTILES:
+                for i, filterSet in enumerate(filterSets):
+                    outFile = (fitsFilename[:-24] if redShift else fitsFilename[:-15])
+                    outFile = (outFile[:-5] if "phys" in outFile else outFile[:-4])
+                    outFile += "-filter" + str(i) + "-camera%d"
+                    outFile += "-ap" + autoPercentile
+                    outFile += ("-redshift.jpg" if redShift else ".jpg")
+                    make_color.write_all(fitsFilename, "-BROADBAND", IMAGE_DIR + outFile, band=filterSet, 
+                                         scale="autolum", autopercentile=float(autoPercentile), overwrite=True)
         chdir(pardir)
     exit(0)
 
