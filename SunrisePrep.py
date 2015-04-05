@@ -5,8 +5,8 @@
 # File: SunrisePrep.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
 # License: GNU GPL v3 <gnu.org/licenses>
-# Last Edit: 2015-03-30
-# Purpose: Use PyNBody to extract the galaxy and its surroundings
+# Last Edit: 2015-04-04
+# Purpose: Determine the trunk of the merger tree, extract the galaxy 
 # for a certain radius from the larger simulation file, run SMOOTH on it,
 # generate the Sunrise config files, and write job submission scripts. Please 
 # ensure pynbody is installed, std2ascii and smooth are in your PATH, and all 
@@ -25,6 +25,10 @@ import shutil
 import math
 import ConfigParser
 import re
+import matplotlib
+import scipy
+import pickle
+import numpy
 
 CONFIG_FILE = "config.ini"
 SECTION_NAME = "Sunrise Prep"
@@ -32,7 +36,7 @@ WORKING_DIR = os.getcwd() + os.sep
 
 def main():
     #
-    #Step 1: Read the config file and initialize listOfTimesteps
+    #Step 0: Read the config file and initialize listOfTimesteps
     #
     config = ConfigParser.SafeConfigParser()
     sys.stdout.write("Reading " + CONFIG_FILE + "\n")
@@ -59,6 +63,15 @@ def main():
             sys.stderr.write("Error: configured directory does not exist.")
             sys.exit(1)
     GALAXY_NAME = config.get(SECTION_NAME, "GALAXY_NAME")
+    # Find every time step for the galaxy (for halo tracking).
+    allTimesteps = []
+    for f in os.listdir(SIM_DIR):
+        if re.match(r"^" + GALAXY_NAME + "\.\d+$", f) != None:
+            allTimesteps.append(f.split(".")[1])
+    if len(allTimesteps) == 0:
+        sys.stderr.write("Error: No time steps specified or found in " + SIM_DIR + "\n")
+        sys.exit(1)
+    # Check if any time steps were specified.
     listOfTimesteps = []
     try:
         TIME_STEPS = config.get("Sunrise Prep", "TIME_STEPS")
@@ -66,14 +79,71 @@ def main():
             listOfTimesteps = TIME_STEPS.split(",")
     except ConfigParser.NoOptionError:
         pass
-    # If no time steps were specified, look for them.
+    # If no time steps were specified, process them all.
     if len(listOfTimesteps) == 0:
-        for f in os.listdir(SIM_DIR):
-            if re.match(r"^" + GALAXY_NAME + "\.\d+$", f) != None:
-                listOfTimesteps.append(f.split(".")[1])
-    if len(listOfTimesteps) == 0: # we couldn't find any
-        sys.stderr.write("Error: No time steps specified or found in " + SIM_DIR + "\n")
-        sys.exit(1)
+        listOfTimesteps = allTimesteps[:]
+    #
+    #Step 1: Traverse the time steps to find the trunk of the merger tree.
+    #
+    numTimesteps = len(allTimesteps)
+    snapids = numpy.full(numTimesteps, -999, dtype=numpy.int32)
+    snapids = numpy.full(numTimesteps, -999, dtype=numpy.int32)
+    haloidd = 1
+    haloids = 1
+    for i in range(numTimesteps - 1):
+        snap1 = pynbody.load(path+sim+'/'+sim+'.'+filelist[i])
+        snap1.physical_units()
+        idx = np.zeros(shape=(2,len(snap1.d)))
+        halo1 = snap1.halos()
+        halo1.make_grp()
+        if len(halo1) == 0:
+            print sim + '.' + filelist[i] + ' has no halos.'
+            continue
+        mycenter(halo1[1],1,mode='myhyb')
+        pynbody.analysis.angmom.faceon(halo1[1],cen=[0,0,0])
+        snap2 = pynbody.load(path+sim+'/'+sim+'.'+filelist[i+1])
+        snap2.physical_units()
+        halo2 = snap2.halos()
+        halo2.make_grp()
+        if len(halo2) == 0:
+            print sim + '.' + filelist[i+1] + ' has no halos.'
+            continue
+        mycenter(halo2[1],1,mode='myhyb')
+        pynbody.analysis.angmom.faceon(halo2[1],cen=[0,0,0])
+        # Use dark matter to walk across the snapshots        
+        ind = snap1.d['grp']==haloidd
+        ids = snap2.d['grp'][ind]
+        uids = np.unique(ids)
+        if(np.size(uids)>0):
+            muids = np.concatenate((uids,[uids.max()+1]))        
+            hh,hids=np.histogram(ids,bins=muids)
+            
+            ind = hids[:-1]!=0
+            if(hh[ind].sum()>0):
+                imax = hh[ind].argmax()
+                haloidd = hids[ind][imax]
+                snapidd[i]=haloidd
+        # use the stars to walk across the snapshots
+        ind = snap1.s['grp']==haloids 
+        nstar = len(snap2.s)       
+        ind2=ind[:nstar]
+        ids = snap2.s['grp'][ind2]
+        uids = np.unique(ids)
+        if(np.size(uids)>0):
+            muids = np.concatenate((uids,[uids.max()+1]))        
+            hh,hids=np.histogram(ids,bins=muids)
+            ind = hids[:-1]!=0
+            if(hh[ind].sum()>0):
+                imax = hh[ind].argmax()
+                haloids = hids[ind][imax]
+                snapids[i]=haloids
+            
+    # End loop traversing all the time steps. Save the data in the output folder.
+    np.savetxt('/Users/mwleeds/merger-trees/mainbranch_'+sim+'_star.txt',snapids,fmt='%d')
+    np.savetxt('/Users/mwleeds/merger-trees/mainbranch_'+sim+'_dark.txt',snapidd,fmt='%d')
+        #TODO
+        #TODO
+    # Read the rest of the parameters.
     GALAXY_SET = config.get(SECTION_NAME, "GALAXY_SET")
     PARAM_FILE = config.get(SECTION_NAME, "PARAM_FILE")
     PHYS = config.getboolean(SECTION_NAME, "PHYS")
@@ -135,7 +205,7 @@ def main():
         #Step 3: Cut out the specified radius.
         #
         if VERBOSE: sys.stdout.write("Finding the largest halo\n")
-        h1 = sim.halos()[1]
+        h1 = sim.halos()[1] #TODO use trunk found above
         if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(h1.g), len(h1.d), len(h1.s)))
         if VERBOSE: sys.stdout.write("Centering the simulation around the main halo\n")
         pynbody.analysis.halo.center(h1, mode="hyb")
@@ -317,5 +387,87 @@ def main():
     if VERBOSE: sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
     sys.exit(0)
     
+def mycenterpot(sim,haloid):
+    i = sim["phi"][sim['grp']==haloid].argmin()
+    return sim["pos"][sim['grp']==haloid][i].copy()
+    
+def my_hybrid_center(sim,haloid, r='3 kpc', **kwargs):
+    """
+
+    Determine the center of the halo by finding the shrink-sphere
+    -center inside the specified distance of the potential minimum
+
+    """
+
+    try:
+        cen_a = mycenterpot(sim,haloid)
+    except KeyError:
+        cen_a = pynbody.analysis.halo.center_of_mass(sim)
+    return pynbody.analysis.halo.shrink_sphere_center(sim[pynbody.filt.Sphere(r, cen_a)], **kwargs)
+
+def mycenter(sim,haloid=1, mode=None, retcen=False, vel=True, cen_size="1 kpc", move_all=True, wrap=False, **kwargs):
+    """
+
+    Determine the center of mass of the given particles using the
+    specified mode, then recenter the particles (of the entire
+    ancestor snapshot) accordingly
+
+    Accepted values for *mode* are
+
+      *mypot*: potential minimum including only host particles
+
+      *myhyb*: for sane halos, returns the same as ssc, but works faster by
+             starting iteration near potential minimum
+
+    or a function returning the COM.
+
+    **Other keywords:**
+
+    *retcen*: if True only return the center without centering the
+     snapshot (default = False)
+
+
+    *vel*: if True, translate velocities so that the velocity of the
+    central 1kpc (default) is zeroed. Other values can be passed with cen_size.
+
+    *move_all*: if True (default), move the entire snapshot. Otherwise only move
+    the particles in the halo passed in.
+
+    *wrap*: if True, pre-centre and wrap the simulation so that halos on the edge
+    of the box are handled correctly. Default False.
+    """
+
+    if mode is None:
+        mode = 'myhyb'
+
+    try:
+        fn = {'mypot': mycenterpot,
+              'myhyb': my_hybrid_center}[mode]
+    except KeyError:
+        fn = mode
+
+    if move_all:
+        target = sim.ancestor
+    else:
+        target = sim
+
+    if wrap:
+        # centre on something within the halo and wrap
+        target = pynbody.transformation.inverse_translate(target, sim['pos'][0])
+        target.sim.wrap()
+
+    #print fn(sim,haloid, **kwargs)
+    if retcen:
+        return fn(sim,haloid, **kwargs)
+    else:
+        cen = fn(sim,haloid, **kwargs)
+        tx = pynbody.transformation.inverse_translate(target, cen)
+
+    if vel:
+        velc = pynbody.analysis.halo.vel_center(sim, cen_size=cen_size, retcen=True)
+        tx = pynbody.transformation.inverse_v_translate(tx, velc)
+
+    return tx
+
 if __name__=="__main__":
     main()
