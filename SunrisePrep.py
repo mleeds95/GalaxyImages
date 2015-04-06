@@ -4,8 +4,9 @@
 #
 # File: SunrisePrep.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
+# Contributor: Owain Snaith
 # License: GNU GPL v3 <gnu.org/licenses>
-# Last Edit: 2015-04-04
+# Last Edit: 2015-04-06
 # Purpose: Determine the trunk of the merger tree, extract the galaxy 
 # for a certain radius from the larger simulation file, run SMOOTH on it,
 # generate the Sunrise config files, and write job submission scripts. Please 
@@ -82,67 +83,6 @@ def main():
     # If no time steps were specified, process them all.
     if len(listOfTimesteps) == 0:
         listOfTimesteps = allTimesteps[:]
-    #
-    #Step 1: Traverse the time steps to find the trunk of the merger tree.
-    #
-    numTimesteps = len(allTimesteps)
-    snapids = numpy.full(numTimesteps, -999, dtype=numpy.int32)
-    snapids = numpy.full(numTimesteps, -999, dtype=numpy.int32)
-    haloidd = 1
-    haloids = 1
-    for i in range(numTimesteps - 1):
-        snap1 = pynbody.load(path+sim+'/'+sim+'.'+filelist[i])
-        snap1.physical_units()
-        idx = np.zeros(shape=(2,len(snap1.d)))
-        halo1 = snap1.halos()
-        halo1.make_grp()
-        if len(halo1) == 0:
-            print sim + '.' + filelist[i] + ' has no halos.'
-            continue
-        mycenter(halo1[1],1,mode='myhyb')
-        pynbody.analysis.angmom.faceon(halo1[1],cen=[0,0,0])
-        snap2 = pynbody.load(path+sim+'/'+sim+'.'+filelist[i+1])
-        snap2.physical_units()
-        halo2 = snap2.halos()
-        halo2.make_grp()
-        if len(halo2) == 0:
-            print sim + '.' + filelist[i+1] + ' has no halos.'
-            continue
-        mycenter(halo2[1],1,mode='myhyb')
-        pynbody.analysis.angmom.faceon(halo2[1],cen=[0,0,0])
-        # Use dark matter to walk across the snapshots        
-        ind = snap1.d['grp']==haloidd
-        ids = snap2.d['grp'][ind]
-        uids = np.unique(ids)
-        if(np.size(uids)>0):
-            muids = np.concatenate((uids,[uids.max()+1]))        
-            hh,hids=np.histogram(ids,bins=muids)
-            
-            ind = hids[:-1]!=0
-            if(hh[ind].sum()>0):
-                imax = hh[ind].argmax()
-                haloidd = hids[ind][imax]
-                snapidd[i]=haloidd
-        # use the stars to walk across the snapshots
-        ind = snap1.s['grp']==haloids 
-        nstar = len(snap2.s)       
-        ind2=ind[:nstar]
-        ids = snap2.s['grp'][ind2]
-        uids = np.unique(ids)
-        if(np.size(uids)>0):
-            muids = np.concatenate((uids,[uids.max()+1]))        
-            hh,hids=np.histogram(ids,bins=muids)
-            ind = hids[:-1]!=0
-            if(hh[ind].sum()>0):
-                imax = hh[ind].argmax()
-                haloids = hids[ind][imax]
-                snapids[i]=haloids
-            
-    # End loop traversing all the time steps. Save the data in the output folder.
-    np.savetxt('/Users/mwleeds/merger-trees/mainbranch_'+sim+'_star.txt',snapids,fmt='%d')
-    np.savetxt('/Users/mwleeds/merger-trees/mainbranch_'+sim+'_dark.txt',snapidd,fmt='%d')
-        #TODO
-        #TODO
     # Read the rest of the parameters.
     GALAXY_SET = config.get(SECTION_NAME, "GALAXY_SET")
     PARAM_FILE = config.get(SECTION_NAME, "PARAM_FILE")
@@ -159,6 +99,79 @@ def main():
     MCRX_STUB = config.get(SECTION_NAME, "MCRX_STUB")
     AUTO_RUN = config.getboolean(SECTION_NAME, "AUTO_RUN")
     TARBALL = config.getboolean(SECTION_NAME, "TARBALL")
+    #
+    #Step 1: Traverse the time steps to find the trunk of the merger tree.
+    #
+    sys.stdout.write("Traversing all time steps for this galaxy to find the trunk of the merger tree.\n")
+    numTimesteps = len(allTimesteps)
+    # Ensure that we traverse the time steps in reverse chronological order.
+    allTimestepInts = [int(x) for x in allTimesteps]
+    allTimestepInts.sort(reverse=True)
+    allTimesteps = [format(x, "05") for x in allTimestepInts]
+    # Initialize arrays to hold the star and dark matter halo IDs.
+    starIDs = numpy.full(numTimesteps, -999, dtype=numpy.int32)
+    darkIDs = numpy.full(numTimesteps, -999, dtype=numpy.int32)
+    darkHalo = 1
+    starHalo = 1
+    # Traverse the time steps, comparing each to its predecessor.
+    os.chdir(SIM_DIR)
+    starIDsDict = {}
+    for i in range(numTimesteps - 1):
+        # Load the ith snapshot.
+        snap1 = pynbody.load(GALAXY_NAME + "." + allTimesteps[i])
+        snap1.physical_units()
+        idx = numpy.zeros(shape=(2, len(snap1.d)))
+        halo1 = snap1.halos()
+        halo1.make_grp()
+        if len(halo1) == 0:
+            if VERBOSE: sys.stdout.write(GALAXY_NAME + "." + allTimesteps[i] + " has no halos.\n")
+            continue
+        # Use a modified version of pynbody's center, which doesn't always do what you expect.
+        mycenter(halo1[1], 1, mode="myhyb")
+        pynbody.analysis.angmom.faceon(halo1[1], cen=[0,0,0])
+        # Load the (i+1)th snapshot. (really the previous one)
+        snap2 = pynbody.load(GALAXY_NAME + "." + allTimesteps[i+1])
+        snap2.physical_units()
+        halo2 = snap2.halos()
+        halo2.make_grp()
+        if len(halo2) == 0:
+            if VERBOSE: sys.stdout.write(GALAXY_NAME + "." + allTimesteps[i+1] + " has no halos.\n")
+            continue
+        mycenter(halo2[1], 1, mode='myhyb')
+        pynbody.analysis.angmom.faceon(halo2[1], cen=[0,0,0])
+        # Use dark matter to walk across the snapshots.     
+        ind = snap1.d['grp'] == darkHalo
+        ids = snap2.d['grp'][ind]
+        uids = numpy.unique(ids)
+        if(numpy.size(uids) > 0):
+            muids = numpy.concatenate((uids, [uids.max()+1]))        
+            hh, hids = numpy.histogram(ids, bins=muids)
+            ind = hids[:-1] != 0
+            if(hh[ind].sum() > 0):
+                imax = hh[ind].argmax()
+                darkHalo = hids[ind][imax]
+                darkIDs[i] = darkHalo
+        # Use the stars to walk across the snapshots.
+        ind = snap1.s['grp'] == starHalo 
+        nstar = len(snap2.s)
+        ind2 = ind[:nstar]
+        ids = snap2.s['grp'][ind2]
+        uids = numpy.unique(ids)
+        if(numpy.size(uids) > 0):
+            muids = numpy.concatenate((uids, [uids.max()+1]))        
+            hh, hids = numpy.histogram(ids, bins=muids)
+            ind = hids[:-1] != 0
+            if(hh[ind].sum() > 0):
+                imax = hh[ind].argmax()
+                starHalo = hids[ind][imax]
+                starIDs[i] = starHalo
+                starIDsDict[allTimesteps[i]] = starHalo
+    # End loop traversing all the time steps. starIDs and darkIDs should now be correct.
+    # Save the starIDs for documentation.
+    starIDsFile = "mainbranch_" + GALAXY_NAME + "_starIDs.txt"
+    numpy.savetxt(WORKING_DIR + starIDsFile, starIDs, fmt="%d")
+    print starIDsDict
+    '''
     # Iterate over all the time steps generating appropriate files.
     # Notice that we iterate over a copy of the list so we can remove timesteps with no stars.
     for timeStep in listOfTimesteps[:]:
@@ -204,8 +217,12 @@ def main():
         #
         #Step 3: Cut out the specified radius.
         #
-        if VERBOSE: sys.stdout.write("Finding the largest halo\n")
-        h1 = sim.halos()[1] #TODO use trunk found above
+        if VERBOSE: sys.stdout.write("Choosing the appropriate halo.\n")
+        try:
+            h1 = sim.halos()[starIDsDict[timeStep]]
+        except KeyError:
+            sys.stderr.write("Warning: Defaulting to halo 1 for " + snapName + ".\n")
+            h1 = sim.halos()[1]
         if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(h1.g), len(h1.d), len(h1.s)))
         if VERBOSE: sys.stdout.write("Centering the simulation around the main halo\n")
         pynbody.analysis.halo.center(h1, mode="hyb")
@@ -221,7 +238,7 @@ def main():
         #Step 4: Write the snapshot section to the disk in std tipsy and ASCII formats.
         #
         os.chdir(WORKING_DIR)
-        # output filename format: <galaxy name>.<time step>.<diameter>kpc.phys|sim.stdtipsy|ascii
+        # <galaxy name>.<time step>.<diameter>kpc.phys|sim.stdtipsy|ascii
         SNAPFILE = GALAXY_NAME + "." + timeStep + "." + cutDiameter + "kpc"
         SNAPFILE += (".phys" if PHYS else ".sim")
         SNAPFILESTD = SNAPFILE + ".stdtipsy"
@@ -230,26 +247,24 @@ def main():
         cut.write(filename=SNAPFILESTD, fmt=pynbody.tipsy.TipsySnap)
         sys.stdout.write("Writing " + SNAPFILEASC + "\n")
         cmd = "cat " + SNAPFILESTD + " | std2ascii > " + SNAPFILEASC
-        FNULL = open(os.devnull, "w")
-        p1 = subprocess.Popen(cmd, shell=True, stdout=FNULL, stderr=FNULL)
-        p1.wait()
-        if p1.returncode != os.EX_OK:
-            sys.stderr.write("Error running std2ascii. Perhaps it's not in your PATH?\n")
-            FNULL.close()
-            sys.exit(1)
+        with open(os.devnull, "w") as FNULL:
+            p1 = subprocess.Popen(cmd, shell=True, stdout=FNULL, stderr=FNULL)
+            p1.wait()
+            if p1.returncode != os.EX_OK:
+                sys.stderr.write("Error running std2ascii. Perhaps it's not in your PATH?\n")
+                sys.exit(1)
         #
         #Step 5: Run SMOOTH.
         #
         sys.stdout.write("Writing smoothing lengths to smooth.hsm\n")
         cmd = "smooth hsmooth < " + SNAPFILESTD
-        p2 = subprocess.Popen(cmd, shell=True, stdout=FNULL, stderr=FNULL)
-        p2.wait()
-        if p2.returncode != os.EX_OK:
-            sys.stderr.write("Error running smooth. Perhaps it's not in your PATH?\n")
-            FNULL.close()
-            sys.exit(1)
+        with open(os.devnull, "w") as FNULL:
+            p2 = subprocess.Popen(cmd, shell=True, stdout=FNULL, stderr=FNULL)
+            p2.wait()
+            if p2.returncode != os.EX_OK:
+                sys.stderr.write("Error running smooth. Perhaps it's not in your PATH?\n")
+                sys.exit(1)
         os.remove(SNAPFILESTD) # Sunrise just needs the ASCII version
-        FNULL.close()
         #
         #Step 6: Generate Sunrise config files.
         #
@@ -332,7 +347,7 @@ def main():
         #Step 7: Move the files into the final directory, and write out job submission commands.
         #
         sys.stdout.write("Moving files from " + WORKING_DIR + " to " + OUT_DIR + runDirName + ".\n")
-        for fileName in (SNAPFILEASC, "smooth.hsm"):
+        for fileName in (SNAPFILEASC, "smooth.hsm", starIDsFile):
             shutil.move(WORKING_DIR + fileName, fileName)
         shutil.copy(WORKING_DIR + CAMPOS_FILE, CAMPOS_FILE)
         shutil.copy(WORKING_DIR + FILTERS_FILE, FILTERS_FILE)
@@ -359,12 +374,15 @@ def main():
                 f.write("rm -f " + fullRunDir + "broadband-redshift.out " + fullRunDir + "broadband-redshift.err " + fullRunDir + SNAPFILEASC[:-6] + ".broadband-redshift.fits\n")
                 f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband-redshift.out -e " + fullRunDir + "broadband-redshift.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + "-redshift.config\n")
         os.chmod("runbroadband.sh", 0744)
-    # end for loop over time steps
-    # write a file, runall-<galaxy name>-t<min timestep>[-<max timestep>].sh in OUT_DIR that will start sfrhist for all the timesteps
+    # end primary loop over time steps
+    #
+    #Step 8: Write a script to start sfrhist for all time steps.
+    #
     os.chdir(OUT_DIR)
     listOfTimestepInts = [int(x) for x in listOfTimesteps]
     minTimestep = min(listOfTimestepInts)
     maxTimestep = max(listOfTimestepInts)
+    # runall-<galaxy name>-t<min timestep>[-<max timestep>].sh
     jobRunner = "runall-" + GALAXY_NAME + "-t" + format(minTimestep, '05')
     if len(listOfTimesteps) > 1: jobRunner += "-" + format(maxTimestep, '05')
     jobRunner += ".sh"
@@ -374,18 +392,24 @@ def main():
         for timeStep in listOfTimesteps:
             f.write(RUN_DIR + GALAXY_NAME + "-" + timeStep + "-sunrise/runsfrhist.sh\n")
     os.chmod(jobRunner, 0744)
-    # make a gzipped tarball, <galaxy name>-t<min timestep>[-<max timestep>].tgz, 
-    # of the relevant parts of the output directory
+    #
+    #Step 9: If requested, make a tarball of the relevant parts of the output directory.
+    #
     if TARBALL:
         sys.stdout.write("Tarring up the output directory.\n")
+        # <galaxy name>-t<min timestep>[-<max timestep>].tgz
         cmd = "tar czf " + jobRunner[7:-3] + ".tgz *" + GALAXY_NAME + "*"
         p3 = subprocess.Popen(cmd, shell=True)
         p3.wait()
         if p3.returncode != os.EX_OK:
             sys.stderr.write("Error encountered while tarring output directory!\n")
             sys.exit(1)
-    if VERBOSE: sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
+    # Exit.
+    sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
     sys.exit(0)
+    ''' 
+
+# The following are Owain Snaith's modified versions of pynbody functions.
     
 def mycenterpot(sim,haloid):
     i = sim["phi"][sim['grp']==haloid].argmin()
