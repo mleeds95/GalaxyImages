@@ -170,8 +170,6 @@ def main():
     # Save the starIDs for documentation.
     starIDsFile = "mainbranch_" + GALAXY_NAME + "_starIDs.txt"
     numpy.savetxt(WORKING_DIR + starIDsFile, starIDs, fmt="%d")
-    print starIDsDict
-    '''
     # Iterate over all the time steps generating appropriate files.
     # Notice that we iterate over a copy of the list so we can remove timesteps with no stars.
     for timeStep in listOfTimesteps[:]:
@@ -407,7 +405,6 @@ def main():
     # Exit.
     sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
     sys.exit(0)
-    ''' 
 
 # The following are Owain Snaith's modified versions of pynbody functions.
     
