@@ -59,10 +59,12 @@ def main():
             sys.stderr.write("Error: incorrectly formatted directory config parameter. It should start and end with a '" + os.sep + "'\n")
             sys.exit(1)
     # Make sure the local directories exist.
-    for directory in (SIM_DIR, OUT_DIR):
-        if not os.path.isdir(directory):
-            sys.stderr.write("Error: configured directory does not exist.")
-            sys.exit(1)
+    if not os.path.isdir(SIM_DIR):
+        sys.stderr.write("Error: simulation directory '" + SIM_DIR + "' does not exist.\n")
+        sys.exit(1)
+    if not os.path.isdir(OUT_DIR):
+        sys.stdout.write("Attempting to create directory '" + OUT_DIR + "'.\n")
+        os.makedirs(OUT_DIR)
     GALAXY_NAME = config.get(SECTION_NAME, "GALAXY_NAME")
     # Find every time step for the galaxy (for halo tracking).
     allTimesteps = []
@@ -108,10 +110,8 @@ def main():
     allTimestepInts = [int(x) for x in allTimesteps]
     allTimestepInts.sort(reverse=True)
     allTimesteps = [format(x, "05") for x in allTimestepInts]
-    # Initialize arrays to hold the star and dark matter halo IDs.
+    # Initialize arrays to hold the star halo IDs.
     starIDs = numpy.full(numTimesteps, -999, dtype=numpy.int32)
-    darkIDs = numpy.full(numTimesteps, -999, dtype=numpy.int32)
-    darkHalo = 1
     starHalo = 1
     # Traverse the time steps, comparing each to its predecessor.
     os.chdir(SIM_DIR)
@@ -139,18 +139,6 @@ def main():
             continue
         mycenter(halo2[1], 1, mode='myhyb')
         pynbody.analysis.angmom.faceon(halo2[1], cen=[0,0,0])
-        # Use dark matter to walk across the snapshots.     
-        ind = snap1.d['grp'] == darkHalo
-        ids = snap2.d['grp'][ind]
-        uids = numpy.unique(ids)
-        if(numpy.size(uids) > 0):
-            muids = numpy.concatenate((uids, [uids.max()+1]))        
-            hh, hids = numpy.histogram(ids, bins=muids)
-            ind = hids[:-1] != 0
-            if(hh[ind].sum() > 0):
-                imax = hh[ind].argmax()
-                darkHalo = hids[ind][imax]
-                darkIDs[i] = darkHalo
         # Use the stars to walk across the snapshots.
         ind = snap1.s['grp'] == starHalo 
         nstar = len(snap2.s)
@@ -166,11 +154,11 @@ def main():
                 starHalo = hids[ind][imax]
                 starIDs[i] = starHalo
                 starIDsDict[allTimesteps[i]] = starHalo
-    # End loop traversing all the time steps. starIDs and darkIDs should now be correct.
+    # End loop traversing all the time steps. starIDs should now be correct.
     # Save the starIDs for documentation.
     starIDsFile = "mainbranch_" + GALAXY_NAME + "_starIDs.txt"
-    numpy.savetxt(WORKING_DIR + starIDsFile, starIDs, fmt="%d")
-    # Iterate over all the time steps generating appropriate files.
+    numpy.savetxt(OUT_DIR + starIDsFile, starIDs, fmt="%d")
+    # Iterate over all the specified time steps generating appropriate files.
     # Notice that we iterate over a copy of the list so we can remove timesteps with no stars.
     for timeStep in listOfTimesteps[:]:
         #
@@ -345,7 +333,7 @@ def main():
         #Step 7: Move the files into the final directory, and write out job submission commands.
         #
         sys.stdout.write("Moving files from " + WORKING_DIR + " to " + OUT_DIR + runDirName + ".\n")
-        for fileName in (SNAPFILEASC, "smooth.hsm", starIDsFile):
+        for fileName in (SNAPFILEASC, "smooth.hsm"):
             shutil.move(WORKING_DIR + fileName, fileName)
         shutil.copy(WORKING_DIR + CAMPOS_FILE, CAMPOS_FILE)
         shutil.copy(WORKING_DIR + FILTERS_FILE, FILTERS_FILE)
