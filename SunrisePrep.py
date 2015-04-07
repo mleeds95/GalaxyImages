@@ -6,7 +6,7 @@
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
 # Contributor: Owain Snaith
 # License: GNU GPL v3 <gnu.org/licenses>
-# Last Edit: 2015-04-06
+# Last Edit: 2015-04-07
 # Purpose: Determine the trunk of the merger tree, extract the galaxy 
 # for a certain radius from the larger simulation file, run SMOOTH on it,
 # generate the Sunrise config files, and write job submission scripts. Please 
@@ -14,7 +14,10 @@
 # necessary parameters are set. Campos, filters, sfrhist/mcrx stub files, and 
 # 'config.ini' should be in the current directory. Note that the format 
 # <galaxy name>.<time step> for simulation files is hard-coded, as is the 
-# format for param files.
+# format for param files. You probably want to use the "screen" utility to
+# run this so it will continue if your session disconnects, and it's probably
+# also a good idea to write the output to a log file.
+# Usage: $ python SunrisePrep.py >> sunrise-prep.log 2>&1
 #
 ###############################################################################
 
@@ -30,6 +33,7 @@ import matplotlib
 import scipy
 import pickle
 import numpy
+import datetime
 
 CONFIG_FILE = "config.ini"
 SECTION_NAME = "Sunrise Prep"
@@ -39,6 +43,7 @@ def main():
     #
     #Step 0: Read the config file and initialize listOfTimesteps
     #
+    sys.stdout.write("======== Running Sunrise Prep at " + str(datetime.datetime.now()) + " ========\n")
     config = ConfigParser.SafeConfigParser()
     sys.stdout.write("Reading " + CONFIG_FILE + "\n")
     config.read(CONFIG_FILE)
