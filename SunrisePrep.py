@@ -122,6 +122,8 @@ def main():
     os.chdir(SIM_DIR)
     starIDsDict = {}
     for i in range(numTimesteps - 1):
+        t1 = startTimer()
+        if VERBOSE: sys.stdout.write("Comparing " + allTimesteps[i] + " and " + allTimesteps[i+1] + "\n")
         # Load the ith snapshot.
         snap1 = pynbody.load(GALAXY_NAME + "." + allTimesteps[i])
         snap1.physical_units()
@@ -159,6 +161,7 @@ def main():
                 starHalo = hids[ind][imax]
                 starIDs[i] = starHalo
                 starIDsDict[allTimesteps[i]] = starHalo
+        if VERBOSE: stopTimer(t1)
     # End loop traversing all the time steps. starIDs should now be correct.
     # Save the starIDs for documentation.
     starIDsFile = "mainbranch_" + GALAXY_NAME + "_starIDs.txt"
@@ -169,6 +172,7 @@ def main():
         #
         #Step 2: Load the simulation snapshot and calculate some values for the Sunrise config files.
         #
+        t1 = startTimer()
         os.chdir(SIM_DIR)
         snapName = GALAXY_NAME + "." + timeStep
         sys.stdout.write("Loading galaxy simulation file " + SIM_DIR + snapName + "\n")
@@ -205,9 +209,11 @@ def main():
                     if line.startswith("dInitStarMass"):
                         MStarCreation = float(line.split("=")[1].strip()) 
             UnitVelocity = 1.72756e8 * math.sqrt(a)
+        if VERBOSE: stopTimer(t1)
         #
         #Step 3: Cut out the specified radius.
         #
+        t1 = startTimer()
         if VERBOSE: sys.stdout.write("Choosing the appropriate halo.\n")
         try:
             h1 = sim.halos()[starIDsDict[timeStep]]
@@ -225,9 +231,11 @@ def main():
         else:
             cut = h1[pynbody.filt.Sphere(CUT_RADIUS)]
         if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(cut.g), len(cut.d), len(cut.s)))
+        if VERBOSE: stopTimer(t1)
         #
         #Step 4: Write the snapshot section to the disk in std tipsy and ASCII formats.
         #
+        t1 = startTimer()
         os.chdir(WORKING_DIR)
         # <galaxy name>.<time step>.<diameter>kpc.phys|sim.stdtipsy|ascii
         SNAPFILE = GALAXY_NAME + "." + timeStep + "." + cutDiameter + "kpc"
@@ -244,9 +252,11 @@ def main():
             if p1.returncode != os.EX_OK:
                 sys.stderr.write("Error running std2ascii. Perhaps it's not in your PATH?\n")
                 sys.exit(1)
+        if VERBOSE: stopTimer(t1)
         #
         #Step 5: Run SMOOTH.
         #
+        t1 = startTimer()
         sys.stdout.write("Writing smoothing lengths to smooth.hsm\n")
         cmd = "smooth hsmooth < " + SNAPFILESTD
         with open(os.devnull, "w") as FNULL:
@@ -256,9 +266,11 @@ def main():
                 sys.stderr.write("Error running smooth. Perhaps it's not in your PATH?\n")
                 sys.exit(1)
         os.remove(SNAPFILESTD) # Sunrise just needs the ASCII version
+        if VERBOSE: stopTimer(t1)
         #
         #Step 6: Generate Sunrise config files.
         #
+        t1 = startTimer()
         with open(SIM_DIR + PARAM_FILE) as f:
             originalParams = f.readlines()
         # runDirName is the name of the directory in OUT_DIR, and the name of the one in RUN_DIR
@@ -334,9 +346,11 @@ def main():
             f.write("filter_list " + fullRunDir + FILTERS_FILE + "\n")
             f.write("filter_lambda_conversion 1e-10\n")
             f.write("use_counters false\n")
+        if VERBOSE: stopTimer(t1)
         #
         #Step 7: Move the files into the final directory, and write out job submission commands.
         #
+        t1 = startTimer()
         sys.stdout.write("Moving files from " + WORKING_DIR + " to " + OUT_DIR + runDirName + ".\n")
         for fileName in (SNAPFILEASC, "smooth.hsm"):
             shutil.move(WORKING_DIR + fileName, fileName)
@@ -365,10 +379,12 @@ def main():
                 f.write("rm -f " + fullRunDir + "broadband-redshift.out " + fullRunDir + "broadband-redshift.err " + fullRunDir + SNAPFILEASC[:-6] + ".broadband-redshift.fits\n")
                 f.write("bsub -q " + QUEUE_NAME + " -n " + N_THREADS + " -R \"span[hosts=1]\" -o " + fullRunDir + "broadband-redshift.out -e " + fullRunDir + "broadband-redshift.err " + BIN_DIR + "broadband " + fullRunDir + "broadband-" + snapName + "-redshift.config\n")
         os.chmod("runbroadband.sh", 0744)
+        if VERBOSE: stopTimer(t1)
     # end primary loop over time steps
     #
     #Step 8: Write a script to start sfrhist for all time steps.
     #
+    t1 = startTimer()
     os.chdir(OUT_DIR)
     listOfTimestepInts = [int(x) for x in listOfTimesteps]
     minTimestep = min(listOfTimestepInts)
@@ -383,9 +399,11 @@ def main():
         for timeStep in listOfTimesteps:
             f.write(RUN_DIR + GALAXY_NAME + "-" + timeStep + "-sunrise/runsfrhist.sh\n")
     os.chmod(jobRunner, 0744)
+    if VERBOSE: stopTimer(t1)
     #
     #Step 9: If requested, make a tarball of the relevant parts of the output directory.
     #
+    t1 = startTimer()
     if TARBALL:
         sys.stdout.write("Tarring up the output directory.\n")
         # <galaxy name>-t<min timestep>[-<max timestep>].tgz
@@ -395,9 +413,19 @@ def main():
         if p3.returncode != os.EX_OK:
             sys.stderr.write("Error encountered while tarring output directory!\n")
             sys.exit(1)
+    if VERBOSE: stopTimer(t1)
     # Exit.
     sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
     sys.exit(0)
+
+def startTimer():
+    sys.stdout.write("Starting timer.\n")
+    return datetime.datetime.now()
+
+def stopTimer(t1):
+    sys.stdout.write("Stopping timer.\n")
+    t2 = datetime.datetime.now()
+    sys.stdout.write("Elapsed time: " + str(t2 - t1) + "\n")
 
 # The following are Owain Snaith's modified versions of pynbody functions.
     
