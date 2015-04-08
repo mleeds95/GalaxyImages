@@ -404,6 +404,8 @@ def main():
     #Step 9: If requested, make a tarball of the relevant parts of the output directory.
     #
     t1 = startTimer()
+    # All the folders for this galaxy are included, even if they're not the specified time steps.
+    # If you want it to only include the right ones, use a different folder for each run.
     if TARBALL:
         sys.stdout.write("Tarring up the output directory.\n")
         # <galaxy name>-t<min timestep>[-<max timestep>].tgz
@@ -423,7 +425,7 @@ def startTimer():
     return datetime.datetime.now()
 
 def stopTimer(t1):
-    sys.stdout.write("Stopping timer.\n")
+    sys.stdout.write("Stopping timer. ")
     t2 = datetime.datetime.now()
     sys.stdout.write("Elapsed time: " + str(t2 - t1) + "\n")
 
