@@ -5,7 +5,7 @@
 # File: GenerateImages.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
 # License: GNU GPL v3 <gnu.org/licenses>
-# Last Edit: 2015-03-30
+# Last Edit: 2015-04-12
 # Purpose: Generate color RGB images in JPEG format from Sunrise's broadband
 # output using Patrik's make_color module. Please run this:
 # hg clone https://bitbucket.org/lutorm/python
@@ -14,10 +14,10 @@
 # Config parameters should be set in 'config.ini' under 'Generate Images'.
 # Broadband output files are expected to be in the format:
 # SUNRISE_DIR/GALAXY_NAME-TIME_STEP-sunrise/
-# GALAXY_NAME.TIME_STEP.DIAMETERkpc.phys|sim.broadband.fits
+# <galaxy name>.<time step>.h<halo id>.<cut diameter>kpc.phys|sim.broadband.fits
 # Image files will be written to 
 # SUNRISE_DIR/GALAXY_NAME-TIME_STEP-sunrise/ (or IMAGE_DIR/)
-# <galaxy name>.<time step>.<cut diameter>kpc-filter<i>-camera<i>-ap<autopercentile>[-redshift].jpg
+# <galaxy name>.<time step>.h<halo id>.<cut diameter>kpc-filter<i>-camera<i>-ap<autopercentile>[-redshift].jpg
 #
 ###############################################################################
 
@@ -62,7 +62,7 @@ def main():
         chdir(folderName)
         # Find the broadband FITS file for this time step, and the redshifted one if it's there.
         fitsFiles = []
-        matchRE = r"^" + GALAXY_NAME + "\." + timeStep + "\.\d+kpc\.(phys|sim)\.broadband(-redshift)?\.fits$"
+        matchRE = r"^" + GALAXY_NAME + "\." + timeStep + "\.h\d+\.\d+kpc\.(phys|sim)\.broadband(-redshift)?\.fits$"
         for f in listdir(curdir):
             if match(matchRE, f) != None:
                 fitsFiles.append(f)

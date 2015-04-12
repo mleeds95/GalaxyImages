@@ -5,7 +5,7 @@
 # File: SunriseCleanup.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
 # License: GNU GPL v3 <gnu.org/licenses>
-# Last Edit: 2015-04-05
+# Last Edit: 2015-04-12
 # Purpose: Assuming Sunrise has finished running for the specified time steps,
 # delete the intermediate files and tar up the useful ones (broadband output
 # and sfrhist input). Without doing this, each galaxy would use roughly 
@@ -52,7 +52,7 @@ def main():
         os.chdir(folderName)
         # Try to find the broadband FITS file for this time step.
         foundBroadband = False
-        broadbandFitsRE = r"^" + GALAXY_NAME + "\." + timeStep + "\.\d+kpc\.(phys|sim)\.broadband(-redshift)?\.fits$"
+        broadbandFitsRE = r"^" + GALAXY_NAME + "\." + timeStep + "\.h\d+\.\d+kpc\.(phys|sim)\.broadband(-redshift)?\.fits$"
         for f in os.listdir(os.curdir):
             if match(broadbandFitsRE, f) != None:
                 foundBroadband = True
@@ -68,7 +68,7 @@ def main():
             print GALAXY_NAME + " appears not to have finished successfully. Leaving its files alone." 
             continue
         # If Broadband succeeded delete everything but broadband output and sfrhist input 
-        sfrhistSnapRE = r"^" + GALAXY_NAME + "\." + timeStep + "\.\d+kpc\.(phys|sim)\.ascii"
+        sfrhistSnapRE = r"^" + GALAXY_NAME + "\." + timeStep + "\.h\d+\.\d+kpc\.(phys|sim)\.ascii"
         for f in os.listdir(os.curdir):
             if match(broadbandFitsRE, f) == None and match(sfrhistSnapRE, f) == None:
                 os.remove(f)

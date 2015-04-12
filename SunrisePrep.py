@@ -6,7 +6,7 @@
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
 # Contributor: Owain Snaith
 # License: GNU GPL v3 <gnu.org/licenses>
-# Last Edit: 2015-04-07
+# Last Edit: 2015-04-12
 # Purpose: Determine the trunk of the merger tree, extract the galaxy 
 # for a certain radius from the larger simulation file, run SMOOTH on it,
 # generate the Sunrise config files, and write job submission scripts. Please 
@@ -131,7 +131,7 @@ def main():
         halo1 = snap1.halos()
         halo1.make_grp()
         if len(halo1) == 0:
-            if VERBOSE: sys.stdout.write(GALAXY_NAME + "." + allTimesteps[i] + " has no halos.\n")
+            if VERBOSE: sys.stdout.write("  " + GALAXY_NAME + "." + allTimesteps[i] + " has no halos.\n")
             continue
         # Use a modified version of pynbody's center, which doesn't always do what you expect.
         mycenter(halo1[1], 1, mode="myhyb")
@@ -142,7 +142,7 @@ def main():
         halo2 = snap2.halos()
         halo2.make_grp()
         if len(halo2) == 0:
-            if VERBOSE: sys.stdout.write(GALAXY_NAME + "." + allTimesteps[i+1] + " has no halos.\n")
+            if VERBOSE: sys.stdout.write("  " + GALAXY_NAME + "." + allTimesteps[i+1] + " has no halos.\n")
             continue
         mycenter(halo2[1], 1, mode='myhyb')
         pynbody.analysis.angmom.faceon(halo2[1], cen=[0,0,0])
@@ -177,23 +177,23 @@ def main():
         snapName = GALAXY_NAME + "." + timeStep
         sys.stdout.write("Loading galaxy simulation file " + SIM_DIR + snapName + "\n")
         sim = pynbody.load(snapName)
-        if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(sim.g), len(sim.d), len(sim.s)))
+        if VERBOSE: sys.stdout.write("  ngas = %e, ndark = %e, nstar = %e\n"%(len(sim.g), len(sim.d), len(sim.s)))
         # If there aren't any stars yet, skip the timestep.
         if len(sim.s) == 0:
-            sys.stdout.write("Skipping " + snapName + " since there aren't any stars in it.\n")
+            sys.stdout.write("  Skipping " + snapName + " since there aren't any stars in it.\n")
             # remove the timestep so we don't include it in the controller script later.
             listOfTimesteps.remove(timeStep)
             continue
         if PHYS:
-            if VERBOSE: sys.stdout.write("Converting to physical units\n")
+            if VERBOSE: sys.stdout.write("  Converting to physical units\n")
             sim.physical_units()
-        if VERBOSE: sys.stdout.write("Finding the latest time value\n")
+        if VERBOSE: sys.stdout.write("  Finding the latest time value\n")
         snaptime = float(sim.s["tform"].max())
         # grab the values of a (1 / 1+z) and z so we can account for redshift
         a = sim.properties["a"]
         z = sim.properties["z"]
         nonzeroRedshift = (abs(z) > 1e-8)
-        if VERBOSE: sys.stdout.write("Finding Unit conversion values and m_star_creation\n")
+        if VERBOSE: sys.stdout.write("  Finding Unit conversion values and m_star_creation\n")
         if PHYS:
             UnitMass = 1.9889e33
             UnitLength = 3.08567758e21
@@ -214,50 +214,50 @@ def main():
         #Step 3: Cut out the specified radius.
         #
         t1 = startTimer()
-        if VERBOSE: sys.stdout.write("Choosing the appropriate halo.\n")
+        if VERBOSE: sys.stdout.write("  Choosing the appropriate halo.\n")
         try:
             h1 = sim.halos()[starIDsDict[timeStep]]
         except KeyError:
-            sys.stderr.write("Warning: Defaulting to halo 1 for " + snapName + ".\n")
+            sys.stderr.write("  Warning: Defaulting to halo 1 for " + snapName + ".\n")
             h1 = sim.halos()[1]
-        if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(h1.g), len(h1.d), len(h1.s)))
-        if VERBOSE: sys.stdout.write("Centering the simulation around the main halo\n")
+        if VERBOSE: sys.stdout.write("  ngas = %e, ndark = %e, nstar = %e\n"%(len(h1.g), len(h1.d), len(h1.s)))
+        if VERBOSE: sys.stdout.write("  Centering the simulation around the main halo\n")
         pynbody.analysis.halo.center(h1, mode="hyb")
-        if VERBOSE: sys.stdout.write("Rotating to a face-on view\n")
+        if VERBOSE: sys.stdout.write("  Rotating to a face-on view\n")
         pynbody.analysis.angmom.faceon(h1, cen=(0,0,0))
-        sys.stdout.write("Filtering out a " + CUT_RADIUS + " radius\n")
+        sys.stdout.write("  Filtering out a " + CUT_RADIUS + " radius\n")
         if CUBE:
             cut = h1[pynbody.filt.Cuboid("-" + CUT_RADIUS)]
         else:
             cut = h1[pynbody.filt.Sphere(CUT_RADIUS)]
-        if VERBOSE: sys.stdout.write("ngas = %e, ndark = %e, nstar = %e\n"%(len(cut.g), len(cut.d), len(cut.s)))
+        if VERBOSE: sys.stdout.write("  ngas = %e, ndark = %e, nstar = %e\n"%(len(cut.g), len(cut.d), len(cut.s)))
         if VERBOSE: stopTimer(t1)
         #
         #Step 4: Write the snapshot section to the disk in std tipsy and ASCII formats.
         #
         t1 = startTimer()
         os.chdir(WORKING_DIR)
-        # <galaxy name>.<time step>.<diameter>kpc.phys|sim.stdtipsy|ascii
-        SNAPFILE = GALAXY_NAME + "." + timeStep + "." + cutDiameter + "kpc"
+        # <galaxy name>.<time step>.h<halo id>.<diameter>kpc.phys|sim.stdtipsy|ascii
+        SNAPFILE = GALAXY_NAME + "." + timeStep + ".h" + str(starIDsDict[timeStep]) + "." + cutDiameter + "kpc"
         SNAPFILE += (".phys" if PHYS else ".sim")
         SNAPFILESTD = SNAPFILE + ".stdtipsy"
         SNAPFILEASC = SNAPFILE + ".ascii"
-        sys.stdout.write("Writing " + SNAPFILESTD + "\n")
+        sys.stdout.write("  Writing " + SNAPFILESTD + "\n")
         cut.write(filename=SNAPFILESTD, fmt=pynbody.tipsy.TipsySnap)
-        sys.stdout.write("Writing " + SNAPFILEASC + "\n")
+        sys.stdout.write("  Writing " + SNAPFILEASC + "\n")
         cmd = "cat " + SNAPFILESTD + " | std2ascii > " + SNAPFILEASC
         with open(os.devnull, "w") as FNULL:
             p1 = subprocess.Popen(cmd, shell=True, stdout=FNULL, stderr=FNULL)
             p1.wait()
             if p1.returncode != os.EX_OK:
-                sys.stderr.write("Error running std2ascii. Perhaps it's not in your PATH?\n")
+                sys.stderr.write("  Error running std2ascii. Perhaps it's not in your PATH?\n")
                 sys.exit(1)
         if VERBOSE: stopTimer(t1)
         #
         #Step 5: Run SMOOTH.
         #
         t1 = startTimer()
-        sys.stdout.write("Writing smoothing lengths to smooth.hsm\n")
+        sys.stdout.write("  Writing smoothing lengths to smooth.hsm\n")
         cmd = "smooth hsmooth < " + SNAPFILESTD
         with open(os.devnull, "w") as FNULL:
             p2 = subprocess.Popen(cmd, shell=True, stdout=FNULL, stderr=FNULL)
@@ -275,14 +275,14 @@ def main():
             originalParams = f.readlines()
         # runDirName is the name of the directory in OUT_DIR, and the name of the one in RUN_DIR
         runDirName = GALAXY_NAME + "-" + timeStep + "-sunrise"
-        if VERBOSE: sys.stdout.write("The running directory will be " + runDirName + "\n")
+        if VERBOSE: sys.stdout.write("  The running directory will be " + runDirName + "\n")
         os.chdir(OUT_DIR)
         if os.path.isdir(runDirName):
             shutil.rmtree(runDirName) # in case this isn't the first run
         os.mkdir(runDirName)
         os.chdir(runDirName)
         fullRunDir = RUN_DIR + runDirName + "/"
-        sys.stdout.write("Writing config and stub files for sfrhist, mcrx, and broadband.\n")
+        sys.stdout.write("  Writing config and stub files for sfrhist, mcrx, and broadband.\n")
         # In theory these values should be in a config file not the param, 
         # but Sunrise seems to like it this way.
         with open(PARAM_FILE, "w") as f:
@@ -351,12 +351,12 @@ def main():
         #Step 7: Move the files into the final directory, and write out job submission commands.
         #
         t1 = startTimer()
-        sys.stdout.write("Moving files from " + WORKING_DIR + " to " + OUT_DIR + runDirName + ".\n")
+        sys.stdout.write("  Moving files from " + WORKING_DIR + " to " + OUT_DIR + runDirName + ".\n")
         for fileName in (SNAPFILEASC, "smooth.hsm"):
             shutil.move(WORKING_DIR + fileName, fileName)
         shutil.copy(WORKING_DIR + CAMPOS_FILE, CAMPOS_FILE)
         shutil.copy(WORKING_DIR + FILTERS_FILE, FILTERS_FILE)
-        sys.stdout.write("Writing bsub commands to runsfrhist.sh, runmcrx.sh, and runbroadband.sh.\n")
+        sys.stdout.write("  Writing bsub commands to runsfrhist.sh, runmcrx.sh, and runbroadband.sh.\n")
         with open("runsfrhist.sh", "w") as f:
             f.write("#!/bin/bash\n\n")
             f.write("rm -f " + fullRunDir + "sfrhist.out " + fullRunDir + "sfrhist.err " + fullRunDir + SNAPFILEASC[:-6] + ".sfrhist.fits\n")
@@ -417,7 +417,7 @@ def main():
             sys.exit(1)
     if VERBOSE: stopTimer(t1)
     # Exit.
-    sys.stdout.write("Finished. You're ready to run Sunrise!\n\n")
+    sys.stdout.write("======== Finished at " + str(datetime.datetime.now()) + ". You're ready to run Sunrise! ========\n\n")
     sys.exit(0)
 
 def startTimer():
