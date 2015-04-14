@@ -64,7 +64,7 @@ def main():
         chdir(folderName)
         # Go ahead and make sure we have write access to the output directory.
         if not access(IMAGE_DIR, os.W_OK):
-            stderr.write("Error no write access to " + os.path.abspath(IMAGE_DIR) + ". Check the permissions.\n")
+            stderr.write("Error: No write access to " + os.path.abspath(IMAGE_DIR) + ". Check the permissions.\n")
             exit(1)
         # Find the broadband FITS file for this time step, and the redshifted one if it's there.
         fitsFiles = []

@@ -6,7 +6,7 @@
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
 # Contributor: Owain Snaith
 # License: GNU GPL v3 <gnu.org/licenses>
-# Last Edit: 2015-04-12
+# Last Edit: 2015-04-14
 # Purpose: Determine the trunk of the merger tree, extract the galaxy 
 # for a certain radius from the larger simulation file, run SMOOTH on it,
 # generate the Sunrise config files, and write job submission scripts. Please 
@@ -41,7 +41,7 @@ WORKING_DIR = os.getcwd() + os.sep
 
 def main():
     #
-    #Step 0: Read the config file and initialize listOfTimesteps
+    #Step 0: Read the config file and process the parameters.
     #
     sys.stdout.write("======== Running Sunrise Prep at " + str(datetime.datetime.now()) + " ========\n")
     config = ConfigParser.SafeConfigParser()
@@ -70,26 +70,11 @@ def main():
     if not os.path.isdir(OUT_DIR):
         sys.stdout.write("Attempting to create directory '" + OUT_DIR + "'.\n")
         os.makedirs(OUT_DIR)
-    GALAXY_NAME = config.get(SECTION_NAME, "GALAXY_NAME")
-    # Find every time step for the galaxy (for halo tracking).
-    allTimesteps = []
-    for f in os.listdir(SIM_DIR):
-        if re.match(r"^" + GALAXY_NAME + "\.\d+$", f) != None:
-            allTimesteps.append(f.split(".")[1])
-    if len(allTimesteps) == 0:
-        sys.stderr.write("Error: No time steps specified or found in " + SIM_DIR + "\n")
-        sys.exit(1)
-    # Check if any time steps were specified.
-    listOfTimesteps = []
-    try:
-        TIME_STEPS = config.get("Sunrise Prep", "TIME_STEPS")
-        if len(TIME_STEPS) > 0:
-            listOfTimesteps = TIME_STEPS.split(",")
-    except ConfigParser.NoOptionError:
-        pass
-    # If no time steps were specified, process them all.
-    if len(listOfTimesteps) == 0:
-        listOfTimesteps = allTimesteps[:]
+    # Make sure we have write access to the current directory and the output directory.
+    for directory in (WORKING_DIR, OUT_DIR):
+        if not os.access(directory, os.W_OK):
+            sys.stderr.write("Error: No write access to " + os.path.abspath(directory) + ". Check the permissions.\n")
+            sys.exit(1)
     # Read the rest of the parameters.
     GALAXY_SET = config.get(SECTION_NAME, "GALAXY_SET")
     PARAM_FILE = config.get(SECTION_NAME, "PARAM_FILE")
@@ -106,6 +91,23 @@ def main():
     MCRX_STUB = config.get(SECTION_NAME, "MCRX_STUB")
     AUTO_RUN = config.getboolean(SECTION_NAME, "AUTO_RUN")
     TARBALL = config.getboolean(SECTION_NAME, "TARBALL")
+    GALAXY_NAME = config.get(SECTION_NAME, "GALAXY_NAME")
+    TIME_STEPS = config.get("Sunrise Prep", "TIME_STEPS")
+    # Find every time step for the galaxy (for halo tracking).
+    allTimesteps = []
+    for f in os.listdir(SIM_DIR):
+        if re.match(r"^" + GALAXY_NAME + "\.\d+$", f) != None:
+            allTimesteps.append(f.split(".")[1])
+    if len(allTimesteps) == 0:
+        sys.stderr.write("Error: No time steps found in " + SIM_DIR + "\n")
+        sys.exit(1)
+    # Check if any time steps were specified.
+    listOfTimesteps = []
+    if len(TIME_STEPS) > 0:
+        listOfTimesteps = TIME_STEPS.split(",")
+    # If no time steps were specified, process them all.
+    if len(listOfTimesteps) == 0:
+        listOfTimesteps = allTimesteps[:]
     #
     #Step 1: Traverse the time steps to find the trunk of the merger tree.
     #
