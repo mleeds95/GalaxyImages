@@ -5,7 +5,7 @@
 # File: SunriseCleanup.py
 # Author: Matthew Leeds <mwleeds@crimson.ua.edu>
 # License: GNU GPL v3 <gnu.org/licenses>
-# Last Edit: 2015-04-12
+# Last Edit: 2015-04-24
 # Purpose: Assuming Sunrise has finished running for the specified time steps,
 # delete the intermediate files and tar up the useful ones (broadband output
 # and sfrhist input). Without doing this, each galaxy would use roughly 
@@ -60,7 +60,7 @@ def main():
         broadbandSuccess = False
         with open(os.devnull, "w") as FNULL:
             for fname in ("broadband.out", "broadband-redshift.out"):
-                if os.isfile(fname):
+                if os.path.isfile(fname):
                     cmd = "head -n30 " + fname + " | grep \"Successfully completed.\""
                     if (Popen(cmd, shell=True, stdout=FNULL, stderr=FNULL).wait()) == 0:
                         broadbandSuccess = True
