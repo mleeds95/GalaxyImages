@@ -1,0 +1,43 @@
+# This file contains general settings for mcrx.  It is included by the 
+# file-specific configuration files
+
+# emergence parameters
+cameradistance		10000	/ [kpc] Camera distance from origin
+npixels			300	/ [] Camera image dimension
+compress_images		false
+write_images_parallel	false
+
+nrays_nonscatter	1000000
+
+# scatter parameters
+grain_model		wd01_Brent_PAH
+wd01_parameter_set 	DL07_MW3.1_60
+use_dl07_opacities	true
+
+dust_to_gas_ratio	0.	/ dust is in metals now
+dust_to_metal_ratio	0.4	/ [] M_d/M_m from Dwek98
+use_multiphase_model    true
+multiphase_t0_star      1.1e9   / [yr]
+multiphase_rho_th       1.71e7  / [Msun/kpc^3]
+
+i_min           0.01
+i_max           10
+
+nrays_scatter		1000000
+nrays_aux		1000000
+nrays_intensity		1000000
+n_wavelengths_intensity	25
+
+# dust emission parameters
+
+nrays_ir		1000000
+template_pah_fraction	0.5 / [] fraction of PAH grains that emit the template
+ir_equilibrium_tolerance 	  0.1
+ir_luminosity_percentile 0.01
+integrate_ir true
+use_grain_temp_lookup	true
+use_cuda		false
+
+cpu_time_margin		180
+wall_clock_margin	240
+seed 			42

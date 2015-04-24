@@ -1,0 +1,33 @@
+# This file contains general settings for sfrhist.  It is included by
+# the file-specific configuration files
+
+min_wavelength		89.0e-9
+max_wavelength		1e-3
+
+## mappings
+use_mappings_seds	true  / Use mappings SEDs for young stars 
+mappings_pdr_fraction 	0.2 / Amount of light from mappings PDR
+mappings_mcl		1e5   / Mappings cloud mass
+
+# definitions of the initial galaxy structure
+diskpopmode1     exponential
+diskpopage1      13.9e9  / [yr] Oldest stars in disk
+diskpoptau1      -106e9  / [yr] Disk exponential time constant
+bulgepopmode1    instantaneous
+bulgepopage1     13.9e9  / [yr] Age of bulge stars
+central_metallicity1    0.032	/ [] 1.6*Zsolar
+metallicity_gradient1   -0.03   / [dex/kpc] to match X99
+
+CCfits_verbose false
+seed 42
+
+use_grid_emission 	false	/ Emission comes from particles
+gas_tolerance	1e100	/ refinement done on gas
+L_bol_tolerance	1e100	/ emission no longer in grid
+metal_tolerance	0.1	/ using tau tolerance
+gas_metallicity	0.	/ metals are explicitly included
+n_rays_estimated	1e7 / [] Estimated number of rays for tolerance
+opacity		3e-5	/ [kpc^2/M_sun] opacity of metals, not gas
+tau_tolerance	1.	/ resolve this optical depth
+size_factor	2
+work_chunk_levels	5
